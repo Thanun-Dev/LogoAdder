@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LogoAdder Ultra Mobile</title>
+    <title>LogoAdder Ultra Pro</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
@@ -54,14 +54,6 @@
                 <input type="range" id="sizeSlider" min="5" max="50" value="15">
             </div>
 
-            <div class="input-group">
-                <div class="label-row">
-                    <label>Opacity</label>
-                    <span id="opacityVal">100%</span>
-                </div>
-                <input type="range" id="opacitySlider" min="10" max="100" value="100">
-            </div>
-
             <button id="downloadBtn" class="primary-btn">ចាប់ផ្ដើមដំណើរការ</button>
             
             <div class="footer">
@@ -78,6 +70,12 @@
                     <button id="nextBtn" class="nav-btn">›</button>
                 </div>
             </div>
+            
+            <div id="results-section" class="results-container">
+                <h3>រូបភាពដែលរួចរាល់ (Hold to Save)</h3>
+                <div id="resultsGallery" class="results-gallery"></div>
+            </div>
+            
             <progress id="progressBar" value="0" max="100"></progress>
         </main>
     </div>
