@@ -12,6 +12,7 @@ let logoImg = null;
 let currentPreviewImg = null;
 let currentZipBlob = null;
 
+// Helper to load image
 function loadImage(file) {
     return new Promise((resolve) => {
         const reader = new FileReader();
@@ -24,16 +25,18 @@ function loadImage(file) {
     });
 }
 
+// Update Range Display
 document.getElementById('sizeSlider').oninput = (e) => {
     document.getElementById('sizeVal').innerText = e.target.value + "%";
     draw();
 };
 
+// Trigger Redraw
 document.querySelectorAll('input, select').forEach(el => el.onchange = draw);
 
 bgInput.onchange = async (e) => {
     bgFiles = Array.from(e.target.files);
-    document.getElementById('fileCount').innerText = `${bgFiles.length} រូបភាព`;
+    document.getElementById('fileCount').innerText = `${bgFiles.length} រូបភាពដែលបានជ្រើសរើស`;
     currentIdx = 0;
     if(bgFiles.length > 0) loadCurrentImg();
 };
@@ -46,6 +49,7 @@ logoInput.onchange = async (e) => {
     }
 };
 
+// Nav Controls
 document.getElementById('nextBtn').onclick = () => { if (currentIdx < bgFiles.length - 1) { currentIdx++; loadCurrentImg(); } };
 document.getElementById('prevBtn').onclick = () => { if (currentIdx > 0) { currentIdx--; loadCurrentImg(); } };
 
@@ -85,13 +89,13 @@ function render(targetCanvas, bg, logo) {
     }
 }
 
-// BATCH PROCESS
+// Processing
 document.getElementById('downloadBtn').onclick = async () => {
     if (bgFiles.length === 0 || !logoImg) return alert("សូមជ្រើសរើសរូបភាព និង Logo!");
 
     const btn = document.getElementById('downloadBtn');
     btn.disabled = true;
-    btn.innerText = "កំពុងដំណើរការ...";
+    btn.innerText = "កំពុងរៀបចំ...";
     
     zipContainer.style.display = "none";
     resultsGallery.innerHTML = ""; 
@@ -103,7 +107,7 @@ document.getElementById('downloadBtn').onclick = async () => {
     for (let i = 0; i < bgFiles.length; i++) {
         const img = await loadImage(bgFiles[i]);
         
-        // Memory safety resize
+        // Safety Limit (2.5K)
         let w = img.width, h = img.height;
         if (w > 2500) { h = (2500/w)*h; w = 2500; }
         
@@ -112,15 +116,15 @@ document.getElementById('downloadBtn').onclick = async () => {
         
         const dataUrl = offCanvas.toDataURL('image/jpeg', 0.85);
         
-        // Gallery Preview
+        // Add to Gallery
         const resultImg = new Image();
         resultImg.src = dataUrl;
         resultImg.className = "result-img";
         resultsGallery.appendChild(resultImg);
 
-        // ZIP Data
+        // Add to ZIP object
         const dataBase64 = dataUrl.split(',')[1];
-        zip.file(`LogoAdder_${i+1}.jpg`, dataBase64, {base64: true});
+        zip.file(`LogoAdder_Pro_${i+1}.jpg`, dataBase64, {base64: true});
         
         document.getElementById('progressBar').value = ((i+1)/bgFiles.length)*100;
     }
@@ -128,15 +132,14 @@ document.getElementById('downloadBtn').onclick = async () => {
     currentZipBlob = await zip.generateAsync({type: "blob"});
     
     btn.disabled = false;
-    btn.innerText = "ដំណើរការរួចរាល់!";
+    btn.innerText = "រួចរាល់!";
     zipContainer.style.display = "block";
 };
 
-// ZIP DOWNLOAD ACTION
 document.getElementById('finalZipBtn').onclick = () => {
     if (!currentZipBlob) return;
     const link = document.createElement('a');
     link.href = URL.createObjectURL(currentZipBlob);
-    link.download = "LogoAdder_Export.zip";
+    link.download = "LogoAdder_Batch.zip";
     link.click();
 };

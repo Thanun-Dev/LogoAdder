@@ -10,54 +10,57 @@
 <body>
     <div class="app-container">
         <aside class="sidebar">
-            <h2 class="brand">LogoAdder <span>Ultra</span></h2>
+            <div class="brand">LogoAdder <span>Ultra</span></div>
             
-            <div class="input-group">
-                <label>១. ជ្រើសរើសរូបភាព (Select Photos) 1</label>
-                <input type="file" id="bgInput" multiple accept="image/*">
-                <small id="fileCount" class="status-text">គ្មានរូបភាព</small>
-            </div>
-
-            <div class="input-group">
-                <label>២. ជ្រើសរើស Logo</label>
-                <input type="file" id="logoInput" accept="image/*">
-                <small id="logoStatus" class="status-text">គ្មាន Logo</small>
-            </div>
-
-            <div class="input-group">
-                <label>៣. ទីតាំង Logo</label>
-                <select id="position">
-                    <option value="top-left">លើ-ឆ្វេង</option>
-                    <option value="top-right">លើ-ស្តាំ</option>
-                    <option value="bottom-left">ក្រោម-ឆ្វេង</option>
-                    <option value="bottom-right" selected>ក្រោម-ស្តាំ</option>
-                    <option value="center">កណ្ដាល</option>
-                </select>
-            </div>
-
-            <div class="margin-row">
+            <div class="control-section">
                 <div class="input-group">
-                    <label>Margin លើ-ក្រោម</label>
-                    <input type="number" id="marginY" value="20" class="fancy-input">
+                    <label>១. ជ្រើសរើសរូបភាព</label>
+                    <input type="file" id="bgInput" multiple accept="image/*">
+                    <small id="fileCount" class="status-muted">រកមិនឃើញរូបភាព</small>
                 </div>
+
                 <div class="input-group">
-                    <label>Margin ឆ្វេង-ស្តាំ</label>
-                    <input type="number" id="marginX" value="20" class="fancy-input">
+                    <label>២. ជ្រើសរើស Logo</label>
+                    <input type="file" id="logoInput" accept="image/*">
+                    <small id="logoStatus" class="status-muted">រកមិនឃើញ Logo</small>
+                </div>
+
+                <div class="input-group">
+                    <label>៣. ទីតាំង Logo</label>
+                    <select id="position">
+                        <option value="top-left">លើ-ឆ្វេង</option>
+                        <option value="top-right">លើ-ស្តាំ</option>
+                        <option value="bottom-left">ក្រោម-ឆ្វេង</option>
+                        <option value="bottom-right" selected>ក្រោម-ស្តាំ</option>
+                        <option value="center">កណ្ដាល</option>
+                    </select>
+                </div>
+
+                <div class="margin-row">
+                    <div class="input-group">
+                        <label>Margin Y</label>
+                        <input type="number" id="marginY" value="20" class="fancy-input">
+                    </div>
+                    <div class="input-group">
+                        <label>Margin X</label>
+                        <input type="number" id="marginX" value="20" class="fancy-input">
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <div class="label-row">
+                        <label>ទំហំ Logo (%)</label>
+                        <span id="sizeVal">15%</span>
+                    </div>
+                    <input type="range" id="sizeSlider" min="5" max="50" value="15">
                 </div>
             </div>
 
-            <div class="input-group">
-                <div class="label-row">
-                    <label>ទំហំ Logo (%)</label>
-                    <span id="sizeVal">15%</span>
+            <div class="action-area">
+                <button id="downloadBtn" class="primary-btn">ចាប់ផ្ដើមដំណើរការ</button>
+                <div id="zipDownloadContainer" style="display: none;">
+                    <button id="finalZipBtn" class="secondary-btn">ទាញយកជា ZIP</button>
                 </div>
-                <input type="range" id="sizeSlider" min="5" max="50" value="15" class="fancy-slider">
-            </div>
-
-            <button id="downloadBtn" class="primary-btn">ចាប់ផ្ដើមដំណើរការ</button>
-            
-            <div id="zipDownloadContainer" style="display: none; margin-top: 10px;">
-                <button id="finalZipBtn" class="secondary-btn">ទាញយកជាឯកសារ ZIP</button>
             </div>
 
             <div class="footer">
@@ -66,20 +69,24 @@
         </aside>
 
         <main class="main-content">
-            <div class="preview-box">
-                <canvas id="mainCanvas"></canvas>
-                <div class="nav-bar">
-                    <button id="prevBtn" class="nav-btn">‹</button>
-                    <span id="navStatus">0 / 0</span>
-                    <button id="nextBtn" class="nav-btn">›</button>
+            <div class="preview-stage">
+                <div class="canvas-wrapper">
+                    <canvas id="mainCanvas"></canvas>
+                    <div class="floating-nav">
+                        <button id="prevBtn" class="nav-btn">‹</button>
+                        <span id="navStatus">0 / 0</span>
+                        <button id="nextBtn" class="nav-btn">›</button>
+                    </div>
                 </div>
             </div>
             
             <progress id="progressBar" value="0" max="100"></progress>
 
             <div id="results-section" class="results-container">
-                <hr>
-                <h3>រូបភាពដែលរួចរាល់ (សង្កត់លើរូបដើម្បី Save)</h3>
+                <div class="gallery-header">
+                    <h3>រូបភាពដែលរួចរាល់</h3>
+                    <p>សង្កត់លើរូបដើម្បី Save ចូល Gallery</p>
+                </div>
                 <div id="resultsGallery" class="results-gallery"></div>
             </div>
         </main>
