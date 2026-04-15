@@ -13,7 +13,7 @@
             <h2 class="brand">LogoAdder <span>Ultra</span></h2>
             
             <div class="input-group">
-                <label>១. ជ្រើសរើសរូបភាព D</label>
+                <label>១. ជ្រើសរើសរូបភាព (Select Photos)</label>
                 <input type="file" id="bgInput" multiple accept="image/*">
                 <small id="fileCount" class="status-text">គ្មានរូបភាព</small>
             </div>
@@ -51,11 +51,15 @@
                     <label>ទំហំ Logo (%)</label>
                     <span id="sizeVal">15%</span>
                 </div>
-                <input type="range" id="sizeSlider" min="5" max="50" value="15">
+                <input type="range" id="sizeSlider" min="5" max="50" value="15" class="fancy-slider">
             </div>
 
             <button id="downloadBtn" class="primary-btn">ចាប់ផ្ដើមដំណើរការ</button>
             
+            <div id="zipDownloadContainer" style="display: none; margin-top: 10px;">
+                <button id="finalZipBtn" class="secondary-btn">ទាញយកជាឯកសារ ZIP</button>
+            </div>
+
             <div class="footer">
                 <p>Created by <span class="author">THANUN</span></p>
             </div>
@@ -71,12 +75,13 @@
                 </div>
             </div>
             
+            <progress id="progressBar" value="0" max="100"></progress>
+
             <div id="results-section" class="results-container">
-                <h3>រូបភាពដែលរួចរាល់ (Hold to Save)</h3>
+                <hr>
+                <h3>រូបភាពដែលរួចរាល់ (សង្កត់លើរូបដើម្បី Save)</h3>
                 <div id="resultsGallery" class="results-gallery"></div>
             </div>
-            
-            <progress id="progressBar" value="0" max="100"></progress>
         </main>
     </div>
     <script src="script.js"></script>

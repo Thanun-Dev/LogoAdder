@@ -4,11 +4,13 @@ const bgInput = document.getElementById('bgInput');
 const logoInput = document.getElementById('logoInput');
 const resultsGallery = document.getElementById('resultsGallery');
 const resultsSection = document.getElementById('results-section');
+const zipContainer = document.getElementById('zipDownloadContainer');
 
 let bgFiles = [];
 let currentIdx = 0;
 let logoImg = null;
 let currentPreviewImg = null;
+let currentZipBlob = null;
 
 function loadImage(file) {
     return new Promise((resolve) => {
@@ -83,6 +85,7 @@ function render(targetCanvas, bg, logo) {
     }
 }
 
+// BATCH PROCESS
 document.getElementById('downloadBtn').onclick = async () => {
     if (bgFiles.length === 0 || !logoImg) return alert("សូមជ្រើសរើសរូបភាព និង Logo!");
 
@@ -90,7 +93,8 @@ document.getElementById('downloadBtn').onclick = async () => {
     btn.disabled = true;
     btn.innerText = "កំពុងដំណើរការ...";
     
-    resultsGallery.innerHTML = ""; // Clear old gallery
+    zipContainer.style.display = "none";
+    resultsGallery.innerHTML = ""; 
     resultsSection.style.display = "block";
 
     const zip = new JSZip();
@@ -99,7 +103,7 @@ document.getElementById('downloadBtn').onclick = async () => {
     for (let i = 0; i < bgFiles.length; i++) {
         const img = await loadImage(bgFiles[i]);
         
-        // Safety resize for mobile
+        // Memory safety resize
         let w = img.width, h = img.height;
         if (w > 2500) { h = (2500/w)*h; w = 2500; }
         
@@ -108,25 +112,31 @@ document.getElementById('downloadBtn').onclick = async () => {
         
         const dataUrl = offCanvas.toDataURL('image/jpeg', 0.85);
         
-        // 1. Add to Gallery (Mobile Friendly)
+        // Gallery Preview
         const resultImg = new Image();
         resultImg.src = dataUrl;
         resultImg.className = "result-img";
         resultsGallery.appendChild(resultImg);
 
-        // 2. Add to ZIP (Backup)
+        // ZIP Data
         const dataBase64 = dataUrl.split(',')[1];
-        zip.file(`Image_${i+1}.jpg`, dataBase64, {base64: true});
+        zip.file(`LogoAdder_${i+1}.jpg`, dataBase64, {base64: true});
         
         document.getElementById('progressBar').value = ((i+1)/bgFiles.length)*100;
     }
 
-    const blob = await zip.generateAsync({type: "blob"});
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = "LogoAdder_Backup.zip";
-    link.click();
-
+    currentZipBlob = await zip.generateAsync({type: "blob"});
+    
     btn.disabled = false;
-    btn.innerText = "ចាប់ផ្ដើមដំណើរការ";
+    btn.innerText = "ដំណើរការរួចរាល់!";
+    zipContainer.style.display = "block";
+};
+
+// ZIP DOWNLOAD ACTION
+document.getElementById('finalZipBtn').onclick = () => {
+    if (!currentZipBlob) return;
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(currentZipBlob);
+    link.download = "LogoAdder_Export.zip";
+    link.click();
 };
