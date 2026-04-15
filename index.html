@@ -3,30 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LogoAdder Ultra Pro</title>
+    <title>កម្មវិធីដាក់ Logo លើរូបភាព</title>
+    <link rel="icon" type="image/x-icon" href="myicon.ico">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
     <div class="app-container">
         <aside class="sidebar">
-            <div class="brand">LogoAdder <span>Ultra</span></div>
+            <div class="brand">កម្មវិធីដាក់ Logo លើរូបភាព</div>
             
             <div class="control-section">
                 <div class="input-group">
-                    <label>១. ជ្រើសរើសរូបភាព</label>
+                    <label>ជ្រើសរើសរូបភាព</label>
                     <input type="file" id="bgInput" multiple accept="image/*">
                     <small id="fileCount" class="status-muted">រកមិនឃើញរូបភាព</small>
                 </div>
 
                 <div class="input-group">
-                    <label>២. ជ្រើសរើស Logo</label>
+                    <label>ជ្រើសរើស Logo</label>
                     <input type="file" id="logoInput" accept="image/*">
                     <small id="logoStatus" class="status-muted">រកមិនឃើញ Logo</small>
                 </div>
 
                 <div class="input-group">
-                    <label>៣. ទីតាំង Logo</label>
+                    <label>ទីតាំង Logo</label>
                     <select id="position">
                         <option value="top-left">លើ-ឆ្វេង</option>
                         <option value="top-right">លើ-ស្តាំ</option>
@@ -39,20 +40,20 @@
                 <div class="margin-row">
                     <div class="input-group">
                         <label>Margin Y</label>
-                        <input type="number" id="marginY" value="20" class="fancy-input">
+                        <input type="number" id="marginY" value="10" class="fancy-input">
                     </div>
                     <div class="input-group">
                         <label>Margin X</label>
-                        <input type="number" id="marginX" value="20" class="fancy-input">
+                        <input type="number" id="marginX" value="10" class="fancy-input">
                     </div>
                 </div>
 
                 <div class="input-group">
                     <div class="label-row">
                         <label>ទំហំ Logo (%)</label>
-                        <span id="sizeVal">15%</span>
+                        <span id="sizeVal">10%</span>
                     </div>
-                    <input type="range" id="sizeSlider" min="5" max="50" value="15">
+                    <input type="range" id="sizeSlider" min="5" max="50" value="10">
                 </div>
             </div>
 
@@ -64,7 +65,7 @@
             </div>
 
             <div class="footer">
-                <p>Created by <span class="author">THANUN</span></p>
+                <p>បង្កើតឡើងដោយ <span class="author">THANUN</span></p>
             </div>
         </aside>
 
@@ -85,7 +86,7 @@
             <div id="results-section" class="results-container">
                 <div class="gallery-header">
                     <h3>រូបភាពដែលរួចរាល់</h3>
-                    <p>សង្កត់លើរូបដើម្បី Save ចូល Gallery</p>
+                    <p>សង្កត់លើរូបដើម្បី Save ចូល Gallery (Hold To Save)</p>
                 </div>
                 <div id="resultsGallery" class="results-gallery"></div>
             </div>

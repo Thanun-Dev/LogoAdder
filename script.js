@@ -95,7 +95,7 @@ document.getElementById('downloadBtn').onclick = async () => {
 
     const btn = document.getElementById('downloadBtn');
     btn.disabled = true;
-    btn.innerText = "កំពុងរៀបចំ...";
+    btn.innerText = "កំពុងរៀបចំ.......";
     
     zipContainer.style.display = "none";
     resultsGallery.innerHTML = ""; 
