@@ -2,8 +2,8 @@
 <html lang="km">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-    <title>LogoAdder Ultra Web</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LogoAdder Ultra Mobile</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
@@ -13,7 +13,7 @@
             <h2 class="brand">LogoAdder <span>Ultra</span></h2>
             
             <div class="input-group">
-                <label>១. ជ្រើសរើសរូបភាព (Select Files)</label>
+                <label>១. ជ្រើសរើសរូបភាព</label>
                 <input type="file" id="bgInput" multiple accept="image/*">
                 <small id="fileCount" class="status-text">គ្មានរូបភាព</small>
             </div>
@@ -51,33 +51,31 @@
                     <label>ទំហំ Logo (%)</label>
                     <span id="sizeVal">15%</span>
                 </div>
-                <input type="range" id="sizeSlider" min="5" max="50" value="15" class="fancy-slider">
+                <input type="range" id="sizeSlider" min="5" max="50" value="15">
             </div>
 
             <div class="input-group">
                 <div class="label-row">
-                    <label>កម្រិតច្បាស់ (Opacity)</label>
+                    <label>Opacity</label>
                     <span id="opacityVal">100%</span>
                 </div>
-                <input type="range" id="opacitySlider" min="10" max="100" value="100" class="fancy-slider">
+                <input type="range" id="opacitySlider" min="10" max="100" value="100">
             </div>
 
             <button id="downloadBtn" class="primary-btn">ចាប់ផ្ដើមដំណើរការ</button>
             
             <div class="footer">
-                <p>កម្មវិធីបង្កើតដោយ</p>
-                <h3 class="author">THANUN</h3>
+                <p>Created by <span class="author">THANUN</span></p>
             </div>
         </aside>
 
         <main class="main-content">
-            <div class="preview-container">
+            <div class="preview-box">
                 <canvas id="mainCanvas"></canvas>
-                
                 <div class="nav-bar">
-                    <button id="prevBtn" class="nav-btn">‹ មុន</button>
+                    <button id="prevBtn" class="nav-btn">‹</button>
                     <span id="navStatus">0 / 0</span>
-                    <button id="nextBtn" class="nav-btn">បន្ទាប់ ›</button>
+                    <button id="nextBtn" class="nav-btn">›</button>
                 </div>
             </div>
             <progress id="progressBar" value="0" max="100"></progress>

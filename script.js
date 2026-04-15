@@ -10,18 +10,19 @@ let currentPreviewImg = null;
 
 // Helper: Load Image
 function loadImage(file) {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (e) => {
             const img = new Image();
             img.onload = () => resolve(img);
+            img.onerror = reject;
             img.src = e.target.result;
         };
         reader.readAsDataURL(file);
     });
 }
 
-// Slider Updates
+// Update UI
 document.getElementById('sizeSlider').oninput = (e) => {
     document.getElementById('sizeVal').innerText = e.target.value + "%";
     draw();
@@ -31,12 +32,12 @@ document.getElementById('opacitySlider').oninput = (e) => {
     draw();
 };
 
-// Re-draw on any setting change
+// Event Listeners
 document.querySelectorAll('input, select').forEach(el => el.onchange = draw);
 
 bgInput.onchange = async (e) => {
     bgFiles = Array.from(e.target.files);
-    document.getElementById('fileCount').innerText = `${bgFiles.length} រូបភាពបានជ្រើសរើស`;
+    document.getElementById('fileCount').innerText = `${bgFiles.length} រូបភាព`;
     currentIdx = 0;
     if(bgFiles.length > 0) loadCurrentImg();
 };
@@ -49,13 +50,8 @@ logoInput.onchange = async (e) => {
     }
 };
 
-// Navigation
-document.getElementById('nextBtn').onclick = () => {
-    if (currentIdx < bgFiles.length - 1) { currentIdx++; loadCurrentImg(); }
-};
-document.getElementById('prevBtn').onclick = () => {
-    if (currentIdx > 0) { currentIdx--; loadCurrentImg(); }
-};
+document.getElementById('nextBtn').onclick = () => { if (currentIdx < bgFiles.length - 1) { currentIdx++; loadCurrentImg(); } };
+document.getElementById('prevBtn').onclick = () => { if (currentIdx > 0) { currentIdx--; loadCurrentImg(); } };
 
 async function loadCurrentImg() {
     currentPreviewImg = await loadImage(bgFiles[currentIdx]);
@@ -72,7 +68,6 @@ function render(targetCanvas, bg, logo) {
     const tCtx = targetCanvas.getContext('2d');
     targetCanvas.width = bg.width;
     targetCanvas.height = bg.height;
-
     tCtx.drawImage(bg, 0, 0);
 
     if (logo) {
@@ -88,13 +83,8 @@ function render(targetCanvas, bg, logo) {
         let x = mX, y = mY;
         if (pos === "top-right") x = targetCanvas.width - lW - mX;
         else if (pos === "bottom-left") y = targetCanvas.height - lH - mY;
-        else if (pos === "bottom-right") {
-            x = targetCanvas.width - lW - mX;
-            y = targetCanvas.height - lH - mY;
-        } else if (pos === "center") {
-            x = (targetCanvas.width - lW) / 2;
-            y = (targetCanvas.height - lH) / 2;
-        }
+        else if (pos === "bottom-right") { x = targetCanvas.width - lW - mX; y = targetCanvas.height - lH - mY; }
+        else if (pos === "center") { x = (targetCanvas.width - lW) / 2; y = (targetCanvas.height - lH) / 2; }
 
         tCtx.globalAlpha = opacity;
         tCtx.drawImage(logo, x, y, lW, lH);
@@ -102,30 +92,43 @@ function render(targetCanvas, bg, logo) {
     }
 }
 
-// ZIP LOGIC
+// MOBILE-READY DOWNLOAD
 document.getElementById('downloadBtn').onclick = async () => {
     if (bgFiles.length === 0 || !logoImg) return alert("សូមជ្រើសរើសរូបភាព និង Logo!");
 
     const btn = document.getElementById('downloadBtn');
     btn.disabled = true;
-    btn.innerText = "កំពុងហាប់ឯកសារ...";
+    btn.innerText = "កំពុងដំណើរការ...";
 
-    const zip = new JSZip();
-    const offCanvas = document.createElement('canvas');
+    try {
+        const zip = new JSZip();
+        const offCanvas = document.createElement('canvas');
 
-    for (let i = 0; i < bgFiles.length; i++) {
-        const img = await loadImage(bgFiles[i]);
-        render(offCanvas, img, logoImg);
-        const data = offCanvas.toDataURL('image/jpeg', 0.9).split(',')[1];
-        zip.file(`LogoAdder_${i+1}.jpg`, data, {base64: true});
-        document.getElementById('progressBar').value = ((i+1)/bgFiles.length)*100;
+        for (let i = 0; i < bgFiles.length; i++) {
+            const img = await loadImage(bgFiles[i]);
+            
+            // Limit resolution to 3000px on mobile to avoid crashing Safari/Chrome
+            let w = img.width, h = img.height;
+            if (w > 3000) { h = (3000/w)*h; w = 3000; }
+            
+            offCanvas.width = w; offCanvas.height = h;
+            render(offCanvas, img, logoImg);
+            
+            const data = offCanvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+            zip.file(`Image_${i+1}.jpg`, data, {base64: true});
+            document.getElementById('progressBar').value = ((i+1)/bgFiles.length)*100;
+        }
+
+        const blob = await zip.generateAsync({type: "blob"});
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = "LogoAdder_Export.zip";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    } catch (err) {
+        alert("Error: " + err.message);
     }
-
-    const blob = await zip.generateAsync({type: "blob"});
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = "Exported_Images.zip";
-    link.click();
 
     btn.disabled = false;
     btn.innerText = "ចាប់ផ្ដើមដំណើរការ";
