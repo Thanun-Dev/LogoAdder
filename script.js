@@ -145,6 +145,12 @@ function render(targetCanvas, bg, logo) {
 
 document.getElementById('downloadBtn').onclick = async () => {
     if (bgFiles.length === 0 || !logoImg) return alert("សូមជ្រើសរើសរូបភាព និង Logo!");
+    // TRACKING: Log the start of processing to Google
+    gtag('event', 'image_processing_start', {
+        'event_category': 'engagement',
+        'event_label': 'Batch Size',
+        'value': bgFiles.length
+    });
     const btn = document.getElementById('downloadBtn');
     btn.disabled = true;
     btn.innerText = "កំពុងរៀបចំ...";
