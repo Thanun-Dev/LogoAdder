@@ -29,12 +29,13 @@ body {
     display: flex; 
     height: 100vh; 
     width: 100vw; 
+    overflow: hidden;
 }
 
 /* --- SIDEBAR --- */
 .sidebar {
-    width: var(--sidebar-w);
-    min-width: var(--sidebar-w);
+    width: 380px !important;
+    min-width: 380px !important; /* Won't get smaller than this to keep text readable */
     background: var(--panel);
     border-right: 1px solid var(--border);
     display: flex;
@@ -49,51 +50,6 @@ body {
 /* Ensure form elements inherit the font (important for select and inputs) */
 input, select, button, textarea {
     font-family: 'Khmer OS Siemreap', sans-serif;
-}
-
-.brand {
-    font-family: 'Khmer OS Siemreap', sans-serif;
-    font-size: 1.4rem;
-    font-weight: 900;
-    text-align: center;
-    margin-bottom: 20px;
-    padding: 15px;
-    
-    /* The Logo Effect: Gradient Text */
-    background: linear-gradient(to right, #3b82f6, #10b981);
-    background-clip: text;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    
-    /* Shadow and Spacing */
-    letter-spacing: -0.5px;
-    text-transform: uppercase;
-    
-    /* Background "Glass" Badge effect */
-    background-color: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-    display: inline-block;
-    width: 100%;
-}
-
-.brand span {
-    /* Make the "PRO" part stand out with a solid background */
-    background: var(--accent);
-    -webkit-text-fill-color: white;
-    padding: 2px 8px;
-    border-radius: 6px;
-    font-size: 0.9rem;
-    margin-left: 5px;
-    vertical-align: middle;
-}
-
-.logo-icon {
-    display: block;
-    font-size: 1.8rem;
-    margin-bottom: 10px;
-    filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.5));
 }
 
 .control-section { display: flex; flex-direction: column; gap: 20px; }
@@ -112,6 +68,35 @@ label {
     -webkit-text-fill-color: transparent;
     
 }
+.sidebar-header {
+    
+    display: flex;
+    justify-content: center; /* Centers horizontally */
+    align-items: center;     /* Centers vertically */
+    padding: 25px 20px;         /* Vertical space above/below logo */
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+}
+
+.brand-logo {
+    /* Set a specific width that looks good in your sidebar */
+    width: 90%; 
+    max-width: 320px; /* Prevents it from getting too large */
+    height: auto;
+    display: block;
+    
+    /* Ensuring the PNG doesn't have any strange default margins */
+    margin: 15px auto; 
+    
+    /* Pro tip: If your logo has a transparent background, 
+       this helps it pop against your dark theme */
+    filter: brightness(1.1); 
+}
+
+.brand-logo:hover {
+    transform: scale(1.05); /* Subtle interaction effect */
+}
+
 .sidebar .status-muted {
     font-size: 0.8rem;
     color: var(--muted);
@@ -241,7 +226,7 @@ select:focus {
 .pos-btn.active {
     background: rgba(59, 130, 246, 0.1);
     border-color: var(--accent);
-    color: white;
+    color: var(--accent);
     box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
     transform: translateY(-2px);
 }
@@ -279,82 +264,514 @@ select:focus {
     letter-spacing: 1px;
 }
 
-
-
 /* --- MAIN CONTENT & PREVIEW --- */
 .main-content {
-    flex-grow: 1;
+    flex-grow: 1; /* Fills 100% of the remaining width */
+    min-width: 0;   /* Necessary for the elastic shrink to work */
+    height: 100vh;
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 40px 20px;
+    padding-top: 40px;
     background: radial-gradient(circle at top, #1c1c21 0%, #09090b 100%);
-    overflow-y: auto;
+    overflow-x: hidden;
 }
 
+.preview-stage {
+    width: 100%;
+    max-width: 1300px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* --- PREVIEW STAGE  --- */
 .canvas-wrapper {
     position: relative;
-    box-shadow: 0 30px 60px rgba(0,0,0,0.5);
-    border-style: solid;
-    border-width: 2px;
-    border-color: var(--border);
+    width: min(1155px, 95%) !important; 
+    aspect-ratio: 16 / 9 !important;
+    margin: 0 auto;
+    background: #0c0c0e;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    
+    /* Shadow for that Pro look */
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.label-row span{
+    font-size: 0.9rem;
+    color: var(--accent);
+}
+
+/* THE OVERLAY CONTAINER */
+#nav-controls {
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
-    background: #000;
+    height: 100%;
+    display: flex;
+    justify-content: space-between;
+    pointer-events: none;
+    z-index: 10;
 }
 
-canvas { 
-    display: block; 
-    width: 100% !important; 
-    height: auto !important;
-    max-height: 60vh;
-    cursor: crosshair;
+/* THE TOUCH ZONES (Left and Right) */
+.nav-zone {
+    width: 30%; /* Balanced touch area */
+    height: 100%;
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
 }
 
-.floating-nav {
+/* THE ARROW INDICATORS */
+.nav-indicator {
+    background: rgba(15, 15, 20, 0.4); /* Dark translucent base */
+    backdrop-filter: blur(8px) saturate(180%); /* Pro glass effect */
+    -webkit-backdrop-filter: blur(8px) saturate(180%);
+    
+    width: 50px;
+    height: 50px;
+    border-radius: 14px; /* Squircle look instead of a plain circle */
+    
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #00e5ff; /* Cyan HUD color */
+    
+    margin: 20px;
+    opacity: 0.3; /* Subtle presence when idle */
+    
+    /* Dual Border for Depth */
+    border: 1px solid rgba(0, 229, 255, 0.2);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+    
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    font-size: 1.2rem;
+    text-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
+}
+
+/* Show arrows only when you hover (Desktop) or when active (Mobile) */
+.nav-zone:hover .nav-indicator {
+    opacity: 1;
+    background: rgba(0, 229, 255, 0.1);
+    border: 1px solid rgba(0, 229, 255, 0.6);
+    box-shadow: 0 0 20px rgba(0, 229, 255, 0.3), inset 0 0 10px rgba(0, 229, 255, 0.2);
+    transform: scale(1.1);
+    color: #ffffff;
+}
+.nav-zone:active .nav-indicator {
+    transform: scale(0.9); /* Haptic-like visual feedback */
+    background: rgba(0, 229, 255, 0.3);
+    opacity: 1;
+}
+
+/* THE STATUS (1 / 10) */
+#navStatus {
     position: absolute;
     bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(24, 24, 27, 0.8);
-    backdrop-filter: blur(10px);
-    padding: 8px 20px;
-    border-radius: 99px;
+    
+    background: rgba(10, 10, 12, 0.8);
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    
+    padding: 6px 16px;
+    border-radius: 30px;
+    
+    font-family: 'monospace', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: #00e5ff;
+    letter-spacing: 2px;
+    
+    pointer-events: none;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+}
+
+/* Hide when no images are loaded */
+.hidden-nav {
+    display: none !important;
+}
+
+.preview-header {
+    width: fit-content; 
+    margin: 0 auto 15px auto;
     display: flex;
-    gap: 20px;
     align-items: center;
+    gap: 10px;
+}
+
+.preview-header h3 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    background: linear-gradient(90deg, #00b7ff 0%, #57c785 46%, #eddd53 85%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    /* Subtle glow for the text */
+    text-shadow: 0 0 10px rgba(161, 161, 170, 0.3);
+}
+
+.live-indicator {
+    width: 8px;
+    height: 8px;
+    background-color: #ff4b4b; /* Red Live dot */
+    border-radius: 50%;
+    box-shadow: 0 0 8px #ff4b4b;
+    animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 75, 75, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(255, 75, 75, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 75, 75, 0); }
+}
+
+/* Ensure the canvas fills the horizontal space */
+#mainCanvas {
+    max-width: 100% !important;
+    max-height: 100% !important;
+    width: auto !important;
+    height: 95% !important;
+    
+    /* This ensures the image doesn't stretch */
+    object-fit: contain; 
+    
+ 
+}
+
+/* Add this NEW class */
+.active-canvas {
+    box-shadow: 0 0 15px rgba(59, 130, 246, 0.6) !important;
+    border: 2px solid rgba(59, 130, 246, 0.3) !important;
+    border-radius: 4px;
+}
+
+/* --- TACTICAL PROGRESS BAR --- */
+.export-progress-container {
+    width: 90%;
+    max-width: 900px;
+    margin: 20px auto;
+    display: none; /* Hidden until Export starts */
+}
+
+.progress-info {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--accent);
+}
+
+.pro-progress-bar {
+    width: 100%;
+    height: 10px;
+    background: #0c0c0e;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+}
+
+.progress-fill {
+    height: 100%;
+    width: 0%; /* Controlled by JS */
+    background: linear-gradient(90deg, #3b82f6, #10b981);
+    border-radius: 20px;
+    position: relative;
+    transition: width 0.3s ease;
+}
+
+/* The Animated Scanning Glow */
+.progress-glow {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.4),
+        transparent
+    );
+    animation: scan 1.5s infinite;
+}
+
+@keyframes scan {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
 }
 
 /* --- COMPACT GALLERY --- */
-
-.gallery-header > h3{
-    font-family: 'Khmer OS Siemreap', system-ui, -apple-system, sans-serif;
-    margin-top: 5px;
+#results-section {
+    display: none; /* Hidden by default */
+    width: 95%;
+}
+#results-section .gallery-header h3 {
+    font-family: 'Khmer OS Siemreap', system-ui, -apple-system, sans-serif !important;
     font-size: 1.5rem;
     font-weight: 700;
-    color: var(--accent);
-    margin-bottom: 15px;
-    background: #00b7ff;
-    background: linear-gradient(90deg,rgba(0, 183, 255, 1) 0%, rgba(87, 199, 133, 1) 46%, rgba(237, 221, 83, 1) 85%);
+    margin-top: 20px;
+    margin-bottom: 10px;
+    display: inline-block; /* Essential for gradient clip */
+    
+    /* Gradient Logic */
+    background: linear-gradient(90deg, #00b7ff 0%, #57c785 46%, #eddd53 85%);
     background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    color: transparent; /* Fallback */
 }
-.gallery-header > p {
-    font-size: 0.9rem;
-    color: var(--muted);
-    background: #b5b5ba;
-    background: linear-gradient(90deg,rgba(181, 181, 186, 1) 25%, rgba(0, 102, 255, 1) 100%);
+
+#results-section .gallery-header p {
+    font-family: 'Khmer OS Siemreap', sans-serif;
+    font-size: 1rem;
+    margin-bottom: 20px;
+    display: block;
+    
+    /* Muted Gradient Logic */
+    background: linear-gradient(168deg,rgb(128, 143, 177) 25%, rgba(0, 255, 0, 1) 48%, rgba(128, 160, 255, 1) 81%);
     background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    color: var(--muted); /* Fallback */
+}
+
+.section-divider {
+    width: 100%;
+    max-width: 1500px;
+    margin: 10px 0 10px 0;
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.divider-line {
+    width: 100%;
+    height: 2px;
+    margin: 40px 0 20px 0;
+    /* Gradient from Blue to Green to match your Logo */
+    background: linear-gradient(90deg, transparent, var(--accent), var(--success), transparent);
+    opacity: 1;
+    border-radius: 99px;
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
 }
 
 .result-img:active {
     transform: scale(0.95); /* Feedback when you press to save */
 }
+.results-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 20px;
+    width: 100%;
+    margin-top: 30px;
+}
+.result-img { width: 100%; border-radius: 10px; border: 1px solid var(--border); }
 
-/* On very small phones, show 2 per row exactly */
-@media (max-width: 400px) {
+.footer { margin-top: 30px; opacity: 0.5; font-size: 1rem; text-align: center; padding-bottom: 20px; margin-bottom: 30px;}
+.footer p {
+    background: #2ee3ff;
+    background: linear-gradient(169deg,rgba(46, 227, 255, 1) 0%, rgba(247, 245, 245, 1) 67%, rgba(24, 58, 110, 1) 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent; font-weight: 700; font-family: Georgia, 'Times New Roman', Times, serif;}
+.footer .author { 
+    cursor: pointer;
+    font-size: 1.7rem;
+    background: #0082FE;
+    background: linear-gradient(168deg,rgb(254, 0, 0) 29%, rgb(76, 0, 255) 61%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent; font-weight: 700; font-family: Georgia, 'Times New Roman', Times, serif;}
+.footer .author-link {
+    text-decoration: none; /* Removes the standard underline */
+    transition: all 0.5s ease;
+}
+.footer .author-link:hover .author {
+    color: var(--success); /* Changes to green when you hover/touch */
+    text-shadow: 0 0 15px rgb(0, 47, 255);
+    letter-spacing: 1px; /* Subtle expansion effect */
+    text-decoration: underline;
+}
+
+
+/* --- PLACEHOLDER & ANIMATION --- */
+.placeholder-overlay {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 5;
+}
+
+.placeholder-text {
+    background: linear-gradient(90deg, #00b7ff 0%, #57c785 46%, #eddd53 85%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-family: 'Khmer OS Siemreap', system-ui, -apple-system, sans-serif !important;
+    font-size: 1.2rem;
+    font-weight: 700;
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.animated-logo-sample {
+    width: 90px;
+    height: 45px;
+    border: 2px dashed var(--accent);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-size: 0.75rem;
+    border-radius: 6px;
+    position: absolute;
+    background: rgba(0, 98, 255, 0.1);
+    /* 5-Position Animation */
+    animation: moveInGrid 12s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+@keyframes moveInGrid {
+    /* 1. START AT TOP LEFT */
+    0%, 15% { 
+        top: 30px; 
+        left: 30px; 
+    }
+    /* 2. GLIDE TO TOP RIGHT */
+    20%, 35% { 
+        top: 30px; 
+        left: calc(100% - 120px); 
+    }
+    /* 3. GLIDE TO BOTTOM RIGHT */
+    40%, 55% { 
+        top: calc(100% - 70px); 
+        left: calc(100% - 120px); 
+    }
+    /* 4. GLIDE TO BOTTOM LEFT */
+    60%, 75% { 
+        top: calc(100% - 70px); 
+        left: 30px; 
+    }
+    /* 5. GLIDE TO CENTER */
+    80%, 95% { 
+        top: calc(50% - 25px); 
+        left: calc(50% - 50px); 
+    }
+
+    /* 6. SMOOTH RETURN TO TOP LEFT */
+    /* This 100% must match 0% exactly to prevent the lag/snap */
+    100% { 
+        top: 30px; 
+        left: 30px; 
+    }
+}
+
+
+/* --- MOBILE RESPONSIVE TWEAKS --- */
+@media (max-width: 850px) {
+    body { 
+        overflow-y: auto !important; 
+        height: auto;
+    } /* Allow phone to scroll down */
+
+    .app-container { 
+        display: block;      /* Change from flex to block */
+        height: auto;        /* Allow it to grow with content */
+        overflow-y: visible; /* Let the main window handle scrolling */
+    }
+    .section-divider {
+        margin: 10px 0 10px 0;
+        padding: 0 20px;
+    }
+    .divider-line {
+        margin: 10px 20px;
+    }
+    .sidebar { 
+        width: 100% !important;
+        min-width: 100% !important;
+        height: auto !important;   /* No longer locked to 100vh */
+        position: relative;        /* No longer sticky */
+        overflow-y: visible !important; /* Disable internal scrolling */
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        padding: 20px;
+    }
+    .preview-header {
+        justify-content: center; /* Center the label on phones */
+        margin-top: 10px;
+    }
+    .preview-header h3 {
+        font-size: 0.9rem ;
+    }
+    .main-content { 
+        width: 100% !important;
+        height: auto !important;   /* Let it take as much space as it needs */
+        padding: 30px 0;
+        overflow-y: visible !important; /* Disable internal scrolling */
+        background: none;          /* Optional: use one background for the whole page */
+    }
+    .canvas-wrapper {
+        width: 94% !important;
+        max-width: none;
+        /* Adjusting ratio slightly for mobile view */
+        aspect-ratio: 16 / 9; 
+        margin: 0 auto;
+    }
+    .results-gallery {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 12px;
+        margin-top: 20px;
+    }
+
+    .gallery-header h3 {
+        font-size: 1.3rem !important;
+    }
+    .placeholder-text {
+    font-size: 0.8rem;
+    }
+}
+/* --- Extra Small Screen Fixes (Phones) --- */
+@media (max-width: 480px) {
+    .animated-logo-sample {
+        width: 75px;
+        height: 38px;
+        font-size: 0.6rem;
+    }
+
+    /* Mobile-specific Animation Paths to stay inside 4:3 box */
+    @keyframes moveInGrid {
+        0%, 15%   { top: 15px; left: 15px; }
+        20%, 35%  { top: 15px; left: calc(100% - 90px); }
+        40%, 55%  { top: calc(100% - 55px); left: calc(100% - 90px); }
+        60%, 75%  { top: calc(100% - 55px); left: 15px; }
+        80%, 95%  { top: calc(50% - 19px); left: calc(50% - 37px); }
+        100%      { top: 15px; left: 15px; }
+    }
+
+    .placeholder-text {
+        font-size: 0.75rem;
+        padding: 0 10px;
+    }
     .results-gallery {
         grid-template-columns: repeat(2, 1fr);
         gap: 8px;
@@ -365,77 +782,4 @@ canvas {
     .pos-btn {
         padding: 12px 8px;
     }
-}
-
-
-.nav-btn { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
-
-/* --- MOBILE RESPONSIVE TWEAKS --- */
-@media (max-width: 850px) {
-    body { overflow-y: auto; } /* Allow phone to scroll down */
-
-    .app-container { 
-        flex-direction: column; 
-        height: auto; 
-    }
-
-    .sidebar { 
-        width: 100%; 
-        min-width: 100%; 
-        height: auto; 
-        position: relative;
-        border-right: none; 
-        border-bottom: 1px solid var(--border); 
-        padding: 30px 20px;
-    }
-
-
-    .main-content { 
-        width: 100%;
-        padding: 20px 10px;
-        height: auto;
-    }
-    .results-gallery {
-        grid-template-columns: repeat(2, 1fr) !important;
-        gap: 10px;
-    }
-
-    canvas {
-        max-height: 55vh; /* Prevents image from being too tall on small screens */
-    }
-
-    .brand { font-size: 1.1rem; margin-bottom: 20px; }
-}
-
-.results-gallery {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 20px;
-    width: 100%;
-    margin-top: 30px;
-}
-.result-img { width: 100%; border-radius: 10px; border: 1px solid var(--border); }
-.footer { margin-top: 30px; opacity: 0.5; font-size: 0.8rem; text-align: center; padding-bottom: 20px; }
-.footer p {
-    background: #2ee3ff;
-    background: linear-gradient(169deg,rgba(46, 227, 255, 1) 0%, rgba(247, 245, 245, 1) 67%, rgba(24, 58, 110, 1) 100%);
-    background-clip: text;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent; font-weight: 700; font-family: Georgia, 'Times New Roman', Times, serif;}
-.footer .author { 
-    cursor: pointer;
-    background: #ff0000;
-    background: linear-gradient(180deg,rgba(255, 0, 0, 1) 30%, rgba(0, 221, 255, 1) 78%, rgba(0, 238, 255, 1) 100%);
-    background-clip: text;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent; font-weight: 700; font-family: Georgia, 'Times New Roman', Times, serif;}
-.footer .author-link {
-    text-decoration: none; /* Removes the standard underline */
-    transition: all 0.5s ease;
-}
-.footer .author-link:hover .author {
-    color: var(--success); /* Changes to green when you hover/touch */
-    text-shadow: 0 0 15px rgb(0, 255, 170);
-    letter-spacing: 1px; /* Subtle expansion effect */
-    text-decoration: underline;
 }

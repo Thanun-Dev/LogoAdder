@@ -18,10 +18,7 @@
 <body>
     <div class="app-container">
         <aside class="sidebar">
-            <div class="brand">
-                <span class="logo-icon">🖼️</span> 
-                កម្មវិធីដាក់ Logo លើរូបភាព
-            </div>
+                <img src="LogoAdder.png" alt="Logo" class="brand-logo">
             
             <div class="control-section">
                 <div class="input-group">
@@ -35,7 +32,6 @@
                     <input type="file" id="logoInput" accept="image/*">
                     <small id="logoStatus" class="status-muted">រកមិនឃើញ Logo</small>
                 </div>
-
                 <div class="input-group">
     <label>កំណត់ទីតាំង Logo</label>
     <div class="position-grid" id="posGrid">
@@ -77,6 +73,13 @@
                     </div>
                     <input type="range" id="sizeSlider" min="5" max="50" value="10">
                 </div>
+                <div class="input-group">
+    <div class="label-row" style="display:flex; justify-content:space-between;">
+        <label>Logo Opacity (%)</label>
+        <span id="opacity-val">100%</span>
+    </div>
+    <input type="range" id="logo-opacity" min="0" max="100" value="100" class="styled-slider">
+</div>
             </div>
 
             <div class="action-area">
@@ -89,20 +92,47 @@
 
         <main class="main-content">
             <div class="preview-stage">
-                <div class="canvas-wrapper">
-                    <canvas id="mainCanvas"></canvas>
-                    <div class="floating-nav">
-                        <button id="prevBtn" class="nav-btn">‹</button>
-                        <span id="navStatus">0 / 0</span>
-                        <button id="nextBtn" class="nav-btn">›</button>
-                    </div>
-                </div>
+                <div class="preview-header">
+    <span class="live-indicator"></span>
+    <h3>Live Preview</h3>
+</div>
+                <div class="canvas-wrapper horizontal-mode">
+    <div id="canvas-placeholder" class="placeholder-overlay">
+        <div class="animated-logo-sample">LOGO</div>
+        <p class="placeholder-text">សូមជ្រើសរើសរូបភាពដើម្បីចាប់ផ្ដើម</p>
+    </div>
+    
+    <canvas id="mainCanvas"></canvas>
+    
+    <div id="nav-controls" class="hidden-nav">
+    <div class="nav-zone" id="prevZone">
+        <div class="nav-indicator">❮</div>
+    </div>
+    <div id="navStatus">0 / 0</div>
+    <div class="nav-zone" id="nextZone" style="justify-content: flex-end;">
+        <div class="nav-indicator">❯</div>
+    </div>
+</div>
+</div>
+            <div class="export-progress-container">
+    <div class="progress-info">
+        <span id="progress-text">កំពុងរៀបចំ........... (0%)</span>
+        <span id="progress-count">0 / 0</span>
+    </div>
+    <div class="pro-progress-bar">
+        <div id="export-progress-fill" class="progress-fill">
+            <div class="progress-glow"></div>
+        </div>
+    </div>
+</div>
             </div>
             
-            <progress id="progressBar" value="0" max="100"></progress>
-
+            <div class="section-divider">
+                <div class="divider-line"></div>
+            </div>
             <div id="results-section" class="results-container">
                 <div class="gallery-header">
+                    
                     <h3>រូបភាពដែលរួចរាល់</h3>
                     <p>សង្កត់លើរូបដើម្បី Save ចូល Gallery (Hold To Save)</p>
                 </div>
