@@ -1,7 +1,7 @@
 * {
     margin: 0;
     padding: 0;
-    box-sizing: border-box; /* This ensures padding stays INSIDE the width */
+    box-sizing: border-box;
 }
 
 :root {
@@ -12,275 +12,227 @@
     --border: #27272a;
     --text: #f4f4f5;
     --muted: #a1a1aa;
-    --sidebar-w: 540px;
+    --sidebar-w: 350px;
 }
 
 body {
     margin: 0;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: 'Khmer OS Siemreap', 'Inter', system-ui, -apple-system, sans-serif;
     background: var(--bg);
     color: var(--text);
     height: 100vh;
-    overflow: hidden;
+    width: 100vw;
+    overflow: hidden; /* Prevents whole-page wobble on desktop */
 }
 
-.app-container { display: flex; height: 100vh; width: 100vw; }
+.app-container { 
+    display: flex; 
+    height: 100vh; 
+    width: 100vw; 
+}
 
 /* --- SIDEBAR --- */
 .sidebar {
     width: var(--sidebar-w);
     min-width: var(--sidebar-w);
-    max-width: var(--sidebar-w);
     background: var(--panel);
     border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
-    padding: 30px 20px;
-    height: 100vh;
-    overflow-y: auto; /* Only scrolls vertically if content is too long */
-    overflow-x: hidden; /* ABSOLUTELY NO HORIZONTAL SCROLL */
+    padding: 25px 20px;
+    height: 100%;
+    overflow-y: auto;
+}
+
+/* Ensure form elements inherit the font (important for select and inputs) */
+input, select, button, textarea {
+    font-family: 'Khmer OS Siemreap', sans-serif;
 }
 
 .brand {
+    font-family: 'Khmer OS Siemreap', sans-serif;
     color: var(--accent);
     font-weight: 800;
-    font-size: 1.5rem;
-    letter-spacing: -0.5px;
-    margin-bottom: 45px; /* Significant space after title */
+    font-size: 1.3rem;
+    margin-bottom: 30px;
     text-align: center;
 }
 
-
-/* Control Sections - Spacing fixed here */
-.control-section { 
-    display: flex; 
-    flex-direction: column; 
-    gap: 35px; /* Large gap to prevent "tight" feeling */
-}
-
-.input-group { display: flex; flex-direction: column; gap: 14px; }
+.control-section { display: flex; flex-direction: column; gap: 20px; }
+.input-group { display: flex; flex-direction: column; gap: 8px; }
 
 label {
     font-size: 0.75rem;
     font-weight: 700;
-    font-size: 0.85rem;
     color: var(--accent);
     text-transform: uppercase;
     letter-spacing: 1px;
 }
 
-/* --- MODERN FILE BUTTONS --- */
-input[type="file"] {
+input[type="file"], .fancy-input, select {
     background: #0c0c0e;
     border: 1px solid var(--border);
-    color: var(--muted);
-    padding: 10px;
+    color: var(--text);
+    padding: 12px;
     border-radius: 10px;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     width: 100%;
-    cursor: pointer;
 }
-/* --- MODERN FANCY BLUE DROPDOWN --- */
+
 select {
-    appearance: none; 
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    
-    /* Solid Blue Base */
-    background-color: var(--accent); 
+    appearance: none;
+    background-color: var(--accent);
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 15px center;
-    background-size: 16px;
-    
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: white;
-    padding: 14px 45px 14px 18px;
-    border-radius: 12px;
-    font-size: 0.95rem;
-    font-weight: 700; /* Bold text for a pro look */
-    width: 100%;
+    background-size: 14px;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    font-weight: 700;
 }
 
-/* Hover Effect: Dark Blue */
-select:hover {
-    background-color: #1d4ed8; /* Deep Dark Blue */
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(29, 78, 216, 0.4);
-}
+.margin-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
-/* Active/Focus Effect */
-select:focus {
-    outline: none;
-    border-color: white;
-    background-color: #1e40af; /* Even darker blue when open */
-    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.3);
-}
-
-/* Styling the options dropdown list */
-select option {
-    background-color: #1e40af; /* Dark background for the list */
-    color: white;
-    font-weight: normal;
-    padding: 12px;
-    border-radius: 15px;
-}
-/* Customizing the "Choose File" part of the button */
-input[type="file"]::file-selector-button {
-    background: var(--accent);
-    color: white;
-    border: none;
-    padding: 8px 14px;
-    border-radius: 6px;
-    margin-right: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-input[type="file"]::file-selector-button:hover {
-    background: #2563eb;
-    transform: translateY(-1px);
-}
-
-/* Standard Inputs & Select */
-.fancy-input, select {
-    background: var(--accent);
-    border: 1px solid var(--border);
-    color: white;
-    padding: 12px;
-    border-radius: 10px;
-    font-size: 0.95rem;
-    transition: border 0.3s ease;
-    outline: none;
-}
-
-.fancy-input:focus, select:focus {
-    border-color: var(--accent);
-}
-
-.margin-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-
-/* --- CENTERED ACTION BUTTONS --- */
-.action-area {
-    margin: 50px 0; /* Huge space around action buttons */
-    display: flex;
-    flex-direction: column;
-    align-items: center; /* Center buttons horizontally */
-    gap: 20px;
-}
+.action-area { margin-top: 30px; display: flex; flex-direction: column; gap: 15px; }
 
 .primary-btn {
     background: var(--success);
     color: #064e3b;
     border: none;
-    padding: 18px 0;
-    border-radius: 14px;
+    padding: 16px;
+    border-radius: 12px;
     font-weight: 800;
-    font-size: 1.1rem;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    width: 100%; /* Full width within the centered action area */
-    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2);
-}
-
-.primary-btn:hover {
-    transform: translateY(-3px) scale(1.02);
-    box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4);
-    opacity: 0.95;
 }
 
 .secondary-btn {
     background: var(--accent);
     color: white;
     border: none;
-    padding: 18px 0;
-    border-radius: 14px;
-    font-weight: 600;
-    font-size: 0.9rem;
     padding: 14px;
-    width: 100%;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2);
+    border-radius: 12px;
     cursor: pointer;
-    transition: all 0.3s ease;
 }
 
-/* Logo Size Bar Increase (Height and Width) */
-input[type="range"] {
-    width: 100%;
-    height: 10px; /* Thicker bar */
-    accent-color: var(--accent);
-    cursor: pointer;
-    margin-top: 5px;
-}
-
-/* --- MAIN CONTENT & CANVAS --- */
+/* --- MAIN CONTENT & PREVIEW --- */
 .main-content {
     flex-grow: 1;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 50px 30px;
-    background-image: radial-gradient(circle at top, #1c1c21 0%, #09090b 100%);
+    padding: 40px 20px;
+    background: radial-gradient(circle at top, #1c1c21 0%, #09090b 100%);
 }
 
 .canvas-wrapper {
     position: relative;
-    box-shadow: 0 50px 100px -20px rgba(0,0,0,0.9);
-    border-radius: 20px;
-    overflow: hidden;
+    box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+    border-style: solid;
+    border-width: 2px;
+    border-color: var(--border);
+    max-width: 100%;
     background: #000;
 }
 
-canvas { display: block; max-width: 100%; max-height: 65vh; }
+canvas { 
+    display: block; 
+    max-width: 100%; 
+    max-height: 70vh; /* Keeps image visible above mobile keyboard/controls */
+    height: auto;
+    cursor: crosshair; 
+}
 
 .floating-nav {
     position: absolute;
-    bottom: 30px;
+    bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(24, 24, 27, 0.85);
-    backdrop-filter: blur(15px);
-    border: 1px solid var(--border);
-    padding: 10px 25px;
+    background: rgba(24, 24, 27, 0.8);
+    backdrop-filter: blur(10px);
+    padding: 8px 20px;
     border-radius: 99px;
     display: flex;
+    gap: 20px;
     align-items: center;
-    gap: 25px;
 }
 
-.nav-btn { background: transparent; border: none; color: white; font-size: 1.6rem; cursor: pointer; opacity: 0.7; transition: 0.2s; }
-.nav-btn:hover { opacity: 1; transform: scale(1.2); }
-
-/* Progress */
-progress {
-    width: 100%;
-    max-width: 400px;
-    height: 6px;
-    border-radius: 10px;
-    margin-top: 30px;
-    accent-color: var(--success);
+/* --- COMPACT GALLERY --- */
+.results-gallery { 
+    display: grid; 
+    /* This forces 2 columns on small phones, 
+       and more columns as the screen gets wider */
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); 
+    gap: 12px; 
+    width: 100%; 
+    max-width: 1000px; 
+    margin-top: 25px; 
+    padding: 10px;
 }
 
-/* Gallery Header */
-.gallery-header { width: 100%; max-width: 1000px; margin-top: 60px; border-bottom: 1px solid var(--border); padding-bottom: 15px; }
-.gallery-header h3 { font-size: 1.5rem; color: var(--accent); margin-bottom: 10px;}
-.results-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 20px; padding: 25px 0; }
-.result-img { width: 100%; border-radius: 12px; border: 1px solid var(--border); transition: 0.3s; cursor: pointer; }
-.result-img:hover { border-color: var(--accent); transform: scale(1.03); }
+.gallery-header > h3{
+    font-family: 'Khmer OS Siemreap', system-ui, -apple-system, sans-serif;
+    margin-top: 5px;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 15px;
+}
 
-/* MOBILE BREAKPOINT */
+.result-img { 
+    width: 100%; 
+    height: auto; 
+    aspect-ratio: 1 / 1; /* Forces them to be squares for a clean grid look */
+    object-fit: cover;   /* Ensures the photo looks good inside the square */
+    border: 1px solid var(--border); 
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    transition: transform 0.2s;
+}
+
+.result-img:active {
+    transform: scale(0.95); /* Feedback when you press to save */
+}
+
+/* On very small phones, show 2 per row exactly */
+@media (max-width: 400px) {
+    .results-gallery {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+}
+
+.nav-btn { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
+
+/* --- MOBILE RESPONSIVE TWEAKS --- */
 @media (max-width: 850px) {
-    .app-container { flex-direction: column; height: auto; }
-    .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); padding: 30px 20px; }
-    .main-content { padding: 30px 15px; }
-    canvas { max-height: 45vh; }
+    body { overflow-y: auto; } /* Allow phone to scroll down */
+
+    .app-container { 
+        flex-direction: column; 
+        height: auto; 
+    }
+
+    .sidebar { 
+        width: 100%; 
+        min-width: 100%; 
+        height: auto; 
+        border-right: none; 
+        border-bottom: 1px solid var(--border); 
+        padding: 20px;
+    }
+
+    .main-content { 
+        width: 100%;
+        padding: 20px 10px;
+        height: auto;
+        min-height: 80vh;
+    }
+
+    canvas {
+        max-height: 55vh; /* Prevents image from being too tall on small screens */
+    }
+
+    .brand { font-size: 1.1rem; margin-bottom: 20px; }
 }
 
-.footer { margin-top: auto; padding-top: 50px; text-align: center; opacity: 0.5; font-size: 1rem; }
-.author { color: var(--accent); font-weight: 800; }
+.footer { margin-top: 30px; opacity: 0.5; font-size: 0.8rem; text-align: center; padding-bottom: 20px; }
+.footer .author { color: var(--accent); font-weight: 700; font-family: Georgia, 'Times New Roman', Times, serif;}

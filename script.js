@@ -25,13 +25,28 @@ function loadImage(file) {
     });
 }
 
-// Update Range Display
+// Click-to-Position Integration
+canvas.addEventListener('click', (e) => {
+    if (!currentPreviewImg) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+    const posSelect = document.getElementById('position');
+
+    if (x < canvas.width / 2 && y < canvas.height / 2) posSelect.value = "top-left";
+    else if (x >= canvas.width / 2 && y < canvas.height / 2) posSelect.value = "top-right";
+    else if (x < canvas.width / 2 && y >= canvas.height / 2) posSelect.value = "bottom-left";
+    else if (x >= canvas.width / 2 && y >= canvas.height / 2) posSelect.value = "bottom-right";
+    
+    draw();
+});
+
+// Update UI display
 document.getElementById('sizeSlider').oninput = (e) => {
     document.getElementById('sizeVal').innerText = e.target.value + "%";
     draw();
 };
 
-// Trigger Redraw
 document.querySelectorAll('input, select').forEach(el => el.onchange = draw);
 
 bgInput.onchange = async (e) => {
@@ -49,7 +64,6 @@ logoInput.onchange = async (e) => {
     }
 };
 
-// Nav Controls
 document.getElementById('nextBtn').onclick = () => { if (currentIdx < bgFiles.length - 1) { currentIdx++; loadCurrentImg(); } };
 document.getElementById('prevBtn').onclick = () => { if (currentIdx > 0) { currentIdx--; loadCurrentImg(); } };
 
@@ -71,11 +85,13 @@ function render(targetCanvas, bg, logo) {
     tCtx.drawImage(bg, 0, 0);
 
     if (logo) {
-        const sizePct = document.getElementById('sizeSlider').value / 100;
-        const mX = parseInt(document.getElementById('marginX').value) || 0;
-        const mY = parseInt(document.getElementById('marginY').value) || 0;
-        const pos = document.getElementById('position').value;
+        // Smart Margin Logic: 3% of shortest side + manual user input
+        const smartM = Math.min(targetCanvas.width, targetCanvas.height) * 0.03;
+        const mX = (parseInt(document.getElementById('marginX').value) || 0) + smartM;
+        const mY = (parseInt(document.getElementById('marginY').value) || 0) + smartM;
 
+        const sizePct = document.getElementById('sizeSlider').value / 100;
+        const pos = document.getElementById('position').value;
         const lW = targetCanvas.width * sizePct;
         const lH = (logo.height / logo.width) * lW;
         
@@ -89,7 +105,6 @@ function render(targetCanvas, bg, logo) {
     }
 }
 
-// Processing
 document.getElementById('downloadBtn').onclick = async () => {
     if (bgFiles.length === 0 || !logoImg) return alert("សូមជ្រើសរើសរូបភាព និង Logo!");
 
@@ -106,8 +121,6 @@ document.getElementById('downloadBtn').onclick = async () => {
 
     for (let i = 0; i < bgFiles.length; i++) {
         const img = await loadImage(bgFiles[i]);
-        
-        // Safety Limit (2.5K)
         let w = img.width, h = img.height;
         if (w > 2500) { h = (2500/w)*h; w = 2500; }
         
@@ -115,22 +128,17 @@ document.getElementById('downloadBtn').onclick = async () => {
         render(offCanvas, img, logoImg);
         
         const dataUrl = offCanvas.toDataURL('image/jpeg', 0.85);
-        
-        // Add to Gallery
         const resultImg = new Image();
         resultImg.src = dataUrl;
         resultImg.className = "result-img";
         resultsGallery.appendChild(resultImg);
 
-        // Add to ZIP object
         const dataBase64 = dataUrl.split(',')[1];
-        zip.file(`LogoAdder_Pro_${i+1}.jpg`, dataBase64, {base64: true});
-        
+        zip.file(`LogoAdder_Result_${i+1}.jpg`, dataBase64, {base64: true});
         document.getElementById('progressBar').value = ((i+1)/bgFiles.length)*100;
     }
 
     currentZipBlob = await zip.generateAsync({type: "blob"});
-    
     btn.disabled = false;
     btn.innerText = "រួចរាល់!";
     zipContainer.style.display = "block";
