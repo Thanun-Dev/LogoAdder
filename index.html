@@ -11,7 +11,10 @@
 <body>
     <div class="app-container">
         <aside class="sidebar">
-            <div class="brand">កម្មវិធីដាក់ Logo លើរូបភាព</div>
+            <div class="brand">
+                <span class="logo-icon">🖼️</span> 
+                កម្មវិធីដាក់ Logo លើរូបភាព
+            </div>
             
             <div class="control-section">
                 <div class="input-group">
@@ -27,24 +30,36 @@
                 </div>
 
                 <div class="input-group">
-                    <label>ទីតាំង Logo (ឬចុចលើរូបភាពផ្ទាល់)</label>
-                    <select id="position">
-                        <option value="top-left">លើ-ឆ្វេង</option>
-                        <option value="top-right">លើ-ស្តាំ</option>
-                        <option value="bottom-left">ក្រោម-ឆ្វេង</option>
-                        <option value="bottom-right" selected>ក្រោម-ស្តាំ</option>
-                        <option value="center">កណ្ដាល</option>
-                    </select>
-                </div>
+    <label>កំណត់ទីតាំង Logo</label>
+    <div class="position-grid" id="posGrid">
+        <button type="button" class="pos-btn" data-value="top-left">
+            <div class="corner-icon tl"></div><span>លើ-ឆ្វេង</span>
+        </button>
+        <button type="button" class="pos-btn active" data-value="top-right">
+            <div class="corner-icon tr"></div><span>លើ-ស្តាំ</span>
+        </button>
+        <button type="button" class="pos-btn" data-value="bottom-left">
+            <div class="corner-icon bl"></div><span>ក្រោម-ឆ្វេង</span>
+        </button>
+        <button type="button" class="pos-btn" data-value="bottom-right">
+            <div class="corner-icon br"></div><span>ក្រោម-ស្តាំ</span>
+        </button>
+        <button type="button" class="pos-btn" data-value="center">
+    <div class="corner-icon mid"></div>
+    <span>កណ្ដាល</span>
+</button>
+    </div>
+    <input type="hidden" id="position" value="top-right">
+</div>
 
                 <div class="margin-row">
                     <div class="input-group">
                         <label>Margin Y</label>
-                        <input type="number" id="marginY" value="10" class="fancy-input">
+                        <input type="number" id="marginY" value="30" class="fancy-input">
                     </div>
                     <div class="input-group">
                         <label>Margin X</label>
-                        <input type="number" id="marginX" value="10" class="fancy-input">
+                        <input type="number" id="marginX" value="30" class="fancy-input">
                     </div>
                 </div>
 
@@ -62,10 +77,6 @@
                 <div id="zipDownloadContainer" style="display: none; width:100%;">
                     <button id="finalZipBtn" class="secondary-btn">ទាញយកជា ZIP</button>
                 </div>
-            </div>
-
-            <div class="footer">
-                <p>បង្កើតឡើងដោយ <span class="author">THANUN</span></p>
             </div>
         </aside>
 
@@ -89,6 +100,12 @@
                     <p>សង្កត់លើរូបដើម្បី Save ចូល Gallery (Hold To Save)</p>
                 </div>
                 <div id="resultsGallery" class="results-gallery"></div>
+            </div>
+            <div class="footer">
+                <p>បង្កើតឡើងដោយ <a href="https://www.facebook.com/thanun2903" target="_blank" class="author-link">
+            <span class="author">THANUN</span>
+        </a></p>
+                
             </div>
         </main>
     </div>

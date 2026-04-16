@@ -12,7 +12,7 @@
     --border: #27272a;
     --text: #f4f4f5;
     --muted: #a1a1aa;
-    --sidebar-w: 350px;
+    --sidebar-w: 450px;
 }
 
 body {
@@ -39,8 +39,10 @@ body {
     border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
-    padding: 25px 20px;
-    height: 100%;
+    padding: 30px 20px;
+    height: 100vh;
+    position: sticky;
+    top: 0;
     overflow-y: auto;
 }
 
@@ -51,22 +53,73 @@ input, select, button, textarea {
 
 .brand {
     font-family: 'Khmer OS Siemreap', sans-serif;
-    color: var(--accent);
-    font-weight: 800;
-    font-size: 1.3rem;
-    margin-bottom: 30px;
+    font-size: 1.4rem;
+    font-weight: 900;
     text-align: center;
+    margin-bottom: 20px;
+    padding: 15px;
+    
+    /* The Logo Effect: Gradient Text */
+    background: linear-gradient(to right, #3b82f6, #10b981);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    
+    /* Shadow and Spacing */
+    letter-spacing: -0.5px;
+    text-transform: uppercase;
+    
+    /* Background "Glass" Badge effect */
+    background-color: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    display: inline-block;
+    width: 100%;
+}
+
+.brand span {
+    /* Make the "PRO" part stand out with a solid background */
+    background: var(--accent);
+    -webkit-text-fill-color: white;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    margin-left: 5px;
+    vertical-align: middle;
+}
+
+.logo-icon {
+    display: block;
+    font-size: 1.8rem;
+    margin-bottom: 10px;
+    filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.5));
 }
 
 .control-section { display: flex; flex-direction: column; gap: 20px; }
 .input-group { display: flex; flex-direction: column; gap: 8px; }
 
 label {
-    font-size: 0.75rem;
+    font-size: 0.9rem;
     font-weight: 700;
     color: var(--accent);
     text-transform: uppercase;
     letter-spacing: 1px;
+    background: #00b7ff;
+    background: linear-gradient(90deg,rgba(0, 183, 255, 1) 0%, rgba(87, 199, 133, 1) 46%, rgba(237, 221, 83, 1) 85%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    
+}
+.sidebar .status-muted {
+    font-size: 0.8rem;
+    color: var(--muted);
+    background: #b5b5ba;
+    background: linear-gradient(90deg,rgba(181, 181, 186, 1) 25%, rgba(0, 102, 255, 1) 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
 input[type="file"], .fancy-input, select {
@@ -86,8 +139,30 @@ select {
     background-repeat: no-repeat;
     background-position: right 15px center;
     background-size: 14px;
-    cursor: pointer;
+    
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 12px 18px;
+    border-radius: 12px; /* Smooth rounded corners */
+    font-size: 0.95rem;
     font-weight: 700;
+    width: 100%;
+    cursor: pointer;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+/* This fixes the "off" look of the dropdown list */
+select option {
+    background-color: #1e40af; /* Darker blue to separate from the button */
+    color: white;
+    padding: 12px;
+    font-size: 0.9rem;
+}
+
+/* Fix for mobile/browser default widths */
+select:focus {
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.4);
 }
 
 .margin-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -95,33 +170,126 @@ select {
 .action-area { margin-top: 30px; display: flex; flex-direction: column; gap: 15px; }
 
 .primary-btn {
-    background: var(--success);
-    color: #064e3b;
+    color: var(--text);
     border: none;
     padding: 16px;
     border-radius: 12px;
+    font-size: 1rem;
     font-weight: 800;
     cursor: pointer;
+    background: #19ff40;
+    background: linear-gradient(335deg,rgba(25, 255, 64, 1) 1%, rgba(46, 227, 255, 1) 53%, rgba(0, 102, 255, 1) 100%);
 }
 
 .secondary-btn {
-    background: var(--accent);
-    color: white;
+    background: #004cff;
+    background: linear-gradient(335deg,rgba(0, 76, 255, 1) 1%, rgba(46, 227, 255, 1) 52%, rgba(255, 255, 255, 1) 100%);
+    width: 100%;
+    color: #004cff;
+    font-weight: 1000;
     border: none;
     padding: 14px;
     border-radius: 12px;
     cursor: pointer;
 }
 
+.position-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.pos-btn {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 15px 10px;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Corner Icons Logic */
+.corner-icon {
+    width: 20px;
+    height: 15px;
+    border: 2px solid currentColor;
+    border-radius: 3px;
+    position: relative;
+    opacity: 0.5;
+}
+
+.corner-icon::after {
+    content: '';
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    background: var(--accent);
+    border-radius: 1px;
+}
+
+/* Positioning the dot inside the icon */
+.tl::after { top: 1px; left: 1px; }
+.tr::after { top: 1px; right: 1px; }
+.bl::after { bottom: 1px; left: 1px; }
+.br::after { bottom: 1px; right: 1px; }
+.mid::after { top: 50%; left: 50%; transform: translate(-50%, -50%); }
+
+.pos-btn.active {
+    background: rgba(59, 130, 246, 0.1);
+    border-color: var(--accent);
+    color: white;
+    box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
+    transform: translateY(-2px);
+}
+
+.pos-btn.active .corner-icon {
+    opacity: 1;
+    border-color: var(--accent);
+}
+
+.pos-btn span {
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+/* Make the center button span the full width of the grid */
+.pos-btn[data-value="center"] {
+    grid-column: span 2;
+    flex-direction: row; /* Changes to horizontal layout for the wide button */
+    justify-content: center;
+    gap: 15px;
+    padding: 15px 10px;
+}
+
+/* Refined Icon for the Center position */
+.corner-icon.mid::after {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%); /* Perfect centering of the dot */
+    width: 6px;
+    height: 6px;
+}
+
+/* Smooth transition for the span text in the center button */
+.pos-btn[data-value="center"] span {
+    font-size: 0.85rem;
+    letter-spacing: 1px;
+}
+
+
+
 /* --- MAIN CONTENT & PREVIEW --- */
 .main-content {
     flex-grow: 1;
-    overflow-y: auto;
     display: flex;
     flex-direction: column;
     align-items: center;
     padding: 40px 20px;
     background: radial-gradient(circle at top, #1c1c21 0%, #09090b 100%);
+    overflow-y: auto;
 }
 
 .canvas-wrapper {
@@ -130,16 +298,16 @@ select {
     border-style: solid;
     border-width: 2px;
     border-color: var(--border);
-    max-width: 100%;
+    width: 100%;
     background: #000;
 }
 
 canvas { 
     display: block; 
-    max-width: 100%; 
-    max-height: 70vh; /* Keeps image visible above mobile keyboard/controls */
-    height: auto;
-    cursor: crosshair; 
+    width: 100% !important; 
+    height: auto !important;
+    max-height: 60vh;
+    cursor: crosshair;
 }
 
 .floating-nav {
@@ -157,17 +325,6 @@ canvas {
 }
 
 /* --- COMPACT GALLERY --- */
-.results-gallery { 
-    display: grid; 
-    /* This forces 2 columns on small phones, 
-       and more columns as the screen gets wider */
-    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); 
-    gap: 12px; 
-    width: 100%; 
-    max-width: 1000px; 
-    margin-top: 25px; 
-    padding: 10px;
-}
 
 .gallery-header > h3{
     font-family: 'Khmer OS Siemreap', system-ui, -apple-system, sans-serif;
@@ -176,16 +333,20 @@ canvas {
     font-weight: 700;
     color: var(--accent);
     margin-bottom: 15px;
+    background: #00b7ff;
+    background: linear-gradient(90deg,rgba(0, 183, 255, 1) 0%, rgba(87, 199, 133, 1) 46%, rgba(237, 221, 83, 1) 85%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
-
-.result-img { 
-    width: 100%; 
-    height: auto; 
-    aspect-ratio: 1 / 1; /* Forces them to be squares for a clean grid look */
-    object-fit: cover;   /* Ensures the photo looks good inside the square */
-    border: 1px solid var(--border); 
-    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-    transition: transform 0.2s;
+.gallery-header > p {
+    font-size: 0.9rem;
+    color: var(--muted);
+    background: #b5b5ba;
+    background: linear-gradient(90deg,rgba(181, 181, 186, 1) 25%, rgba(0, 102, 255, 1) 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
 .result-img:active {
@@ -198,7 +359,14 @@ canvas {
         grid-template-columns: repeat(2, 1fr);
         gap: 8px;
     }
+    .position-grid {
+        gap: 8px;
+    }
+    .pos-btn {
+        padding: 12px 8px;
+    }
 }
+
 
 .nav-btn { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
 
@@ -215,16 +383,21 @@ canvas {
         width: 100%; 
         min-width: 100%; 
         height: auto; 
+        position: relative;
         border-right: none; 
         border-bottom: 1px solid var(--border); 
-        padding: 20px;
+        padding: 30px 20px;
     }
+
 
     .main-content { 
         width: 100%;
         padding: 20px 10px;
         height: auto;
-        min-height: 80vh;
+    }
+    .results-gallery {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 10px;
     }
 
     canvas {
@@ -234,5 +407,35 @@ canvas {
     .brand { font-size: 1.1rem; margin-bottom: 20px; }
 }
 
+.results-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 20px;
+    width: 100%;
+    margin-top: 30px;
+}
+.result-img { width: 100%; border-radius: 10px; border: 1px solid var(--border); }
 .footer { margin-top: 30px; opacity: 0.5; font-size: 0.8rem; text-align: center; padding-bottom: 20px; }
-.footer .author { color: var(--accent); font-weight: 700; font-family: Georgia, 'Times New Roman', Times, serif;}
+.footer p {
+    background: #2ee3ff;
+    background: linear-gradient(169deg,rgba(46, 227, 255, 1) 0%, rgba(247, 245, 245, 1) 67%, rgba(24, 58, 110, 1) 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent; font-weight: 700; font-family: Georgia, 'Times New Roman', Times, serif;}
+.footer .author { 
+    cursor: pointer;
+    background: #ff0000;
+    background: linear-gradient(180deg,rgba(255, 0, 0, 1) 30%, rgba(0, 221, 255, 1) 78%, rgba(0, 238, 255, 1) 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent; font-weight: 700; font-family: Georgia, 'Times New Roman', Times, serif;}
+.footer .author-link {
+    text-decoration: none; /* Removes the standard underline */
+    transition: all 0.5s ease;
+}
+.footer .author-link:hover .author {
+    color: var(--success); /* Changes to green when you hover/touch */
+    text-shadow: 0 0 15px rgb(0, 255, 170);
+    letter-spacing: 1px; /* Subtle expansion effect */
+    text-decoration: underline;
+}
