@@ -1,3 +1,8 @@
+/**
+ * LogoAdder Pro - Ultra Persistence Version
+ * Features: LocalStorage Sync, Persistent Logo Data, Batch Processing, GA4 Tracking
+ */
+
 const canvas = document.getElementById('mainCanvas');
 const ctx = canvas.getContext('2d');
 const bgInput = document.getElementById('bgInput');
@@ -14,6 +19,50 @@ let logoImg = null;
 let currentPreviewImg = null;
 let currentZipBlob = null;
 
+// --- 1. CONFIGURATION & LOGO PERSISTENCE ---
+
+function saveConfig(logoBase64 = null) {
+    const config = {
+        marginX: document.getElementById('marginX').value,
+        marginY: document.getElementById('marginY').value,
+        size: document.getElementById('sizeSlider').value,
+        position: hiddenPosInput.value
+    };
+    
+    // Save settings
+    localStorage.setItem('logoAdderConfig_v2', JSON.stringify(config));
+    
+    // Save Logo Data if provided
+    if (logoBase64) {
+        localStorage.setItem('logoAdder_PersistentLogo', logoBase64);
+    }
+}
+
+async function loadConfig() {
+    const saved = localStorage.getItem('logoAdderConfig_v2');
+    const savedLogo = localStorage.getItem('logoAdder_PersistentLogo');
+
+    if (saved) {
+        const config = JSON.parse(saved);
+        document.getElementById('marginX').value = config.marginX;
+        document.getElementById('marginY').value = config.marginY;
+        document.getElementById('sizeSlider').value = config.size;
+        document.getElementById('sizeVal').innerText = config.size + "%";
+        updatePositionUI(config.position);
+    }
+
+    if (savedLogo) {
+        logoImg = new Image();
+        logoImg.onload = () => {
+            document.getElementById('logoStatus').innerText = "Logo: បញ្ចូលស្វ័យប្រវត្តិ (Auto-Loaded)";
+            draw();
+        };
+        logoImg.src = savedLogo;
+    }
+}
+
+// --- 2. IMAGE UTILITIES ---
+
 function loadImage(file) {
     return new Promise((resolve) => {
         const reader = new FileReader();
@@ -26,13 +75,7 @@ function loadImage(file) {
     });
 }
 
-// Position Button Logic
-posButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-        updatePositionUI(btn.getAttribute('data-value'));
-        draw();
-    });
-});
+// --- 3. UI INTERACTION ---
 
 function updatePositionUI(val) {
     hiddenPosInput.value = val;
@@ -41,44 +84,73 @@ function updatePositionUI(val) {
     });
 }
 
+posButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+        updatePositionUI(btn.getAttribute('data-value'));
+        saveConfig();
+        draw();
+    });
+});
+
 canvas.addEventListener('click', (e) => {
     if (!currentPreviewImg) return;
     const rect = canvas.getBoundingClientRect();
-    
-    // Calculate click coordinates relative to the actual image pixels
     const x = (e.clientX - rect.left) * (canvas.width / rect.width);
     const y = (e.clientY - rect.top) * (canvas.height / rect.height);
-    
-    // Define the "Center Zone" (Inner 30% of the image)
-    const centerXStart = canvas.width * 0.35;
-    const centerXEnd = canvas.width * 0.65;
-    const centerYStart = canvas.height * 0.35;
-    const centerYEnd = canvas.height * 0.65;
+    const cX = canvas.width * 0.35, cY = canvas.height * 0.35, cW = canvas.width * 0.65, cH = canvas.height * 0.65;
 
     let newVal = "";
-
-    // 1. Check if the click is in the Center first
-    if (x > centerXStart && x < centerXEnd && y > centerYStart && y < centerYEnd) {
-        newVal = "center";
-    } 
-    // 2. Otherwise, determine which corner
+    if (x > cX && x < cW && y > cY && y < cH) newVal = "center";
     else {
         if (x < canvas.width / 2 && y < canvas.height / 2) newVal = "top-left";
         else if (x >= canvas.width / 2 && y < canvas.height / 2) newVal = "top-right";
         else if (x < canvas.width / 2 && y >= canvas.height / 2) newVal = "bottom-left";
         else if (x >= canvas.width / 2 && y >= canvas.height / 2) newVal = "bottom-right";
     }
-    
     updatePositionUI(newVal);
+    saveConfig();
     draw();
 });
 
 document.getElementById('sizeSlider').oninput = (e) => {
     document.getElementById('sizeVal').innerText = e.target.value + "%";
+    saveConfig();
     draw();
 };
 
-document.querySelectorAll('input').forEach(el => el.onchange = draw);
+document.querySelectorAll('.fancy-input').forEach(el => {
+    el.addEventListener('input', () => { saveConfig(); draw(); });
+});
+
+// --- 4. CORE RENDERING ---
+
+function render(targetCanvas, bg, logo) {
+    const tCtx = targetCanvas.getContext('2d');
+    targetCanvas.width = bg.width;
+    targetCanvas.height = bg.height;
+    tCtx.drawImage(bg, 0, 0);
+
+    if (logo) {
+        const smartM = Math.min(targetCanvas.width, targetCanvas.height) * 0.01;
+        const mX = (parseInt(document.getElementById('marginX').value) || 0) + smartM;
+        const mY = (parseInt(document.getElementById('marginY').value) || 0) + smartM;
+        const sizePct = document.getElementById('sizeSlider').value / 100;
+        const pos = hiddenPosInput.value;
+        const lW = targetCanvas.width * sizePct;
+        const lH = (logo.height / logo.width) * lW;
+        
+        let x = mX, y = mY;
+        if (pos === "top-right") x = targetCanvas.width - lW - mX;
+        else if (pos === "bottom-left") y = targetCanvas.height - lH - mY;
+        else if (pos === "bottom-right") { x = targetCanvas.width - lW - mX; y = targetCanvas.height - lH - mY; }
+        else if (pos === "center") { x = (targetCanvas.width - lW) / 2; y = (targetCanvas.height - lH) / 2; }
+        tCtx.drawImage(logo, x, y, lW, lH);
+    }
+}
+
+function draw() { if (currentPreviewImg) render(canvas, currentPreviewImg, logoImg); }
+
+// --- 5. BATCH & EXPORT ---
 
 bgInput.onchange = async (e) => {
     bgFiles = Array.from(e.target.files);
@@ -89,14 +161,20 @@ bgInput.onchange = async (e) => {
 
 logoInput.onchange = async (e) => {
     if (e.target.files[0]) {
-        logoImg = await loadImage(e.target.files[0]);
-        document.getElementById('logoStatus').innerText = `Logo: ${e.target.files[0].name}`;
-        draw();
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            const base64 = event.target.result;
+            logoImg = new Image();
+            logoImg.onload = () => {
+                document.getElementById('logoStatus').innerText = `Logo: ${e.target.files[0].name}`;
+                saveConfig(base64); // Save the image data itself
+                draw();
+            };
+            logoImg.src = base64;
+        };
+        reader.readAsDataURL(e.target.files[0]);
     }
 };
-
-document.getElementById('nextBtn').onclick = () => { if (currentIdx < bgFiles.length - 1) { currentIdx++; loadCurrentImg(); } };
-document.getElementById('prevBtn').onclick = () => { if (currentIdx > 0) { currentIdx--; loadCurrentImg(); } };
 
 async function loadCurrentImg() {
     currentPreviewImg = await loadImage(bgFiles[currentIdx]);
@@ -104,58 +182,17 @@ async function loadCurrentImg() {
     draw();
 }
 
-function draw() {
-    if (!currentPreviewImg) return;
-    render(canvas, currentPreviewImg, logoImg);
-}
-
-function render(targetCanvas, bg, logo) {
-    const tCtx = targetCanvas.getContext('2d');
-    targetCanvas.width = bg.width;
-    targetCanvas.height = bg.height;
-    tCtx.drawImage(bg, 0, 0);
-
-    if (logo) {
-        // Reduced Smart Margin: Now only 1% for a tighter fit
-        const smartM = Math.min(targetCanvas.width, targetCanvas.height) * 0.005;
-        
-        // Manual inputs from your "Margin X" and "Margin Y" boxes
-        const mX = (parseInt(document.getElementById('marginX').value) || 0) + smartM;
-        const mY = (parseInt(document.getElementById('marginY').value) || 0) + smartM;
-
-        const sizePct = document.getElementById('sizeSlider').value / 100;
-        const pos = hiddenPosInput.value;
-        const lW = targetCanvas.width * sizePct;
-        const lH = (logo.height / logo.width) * lW;
-        
-        let x = mX, y = mY;
-        if (pos === "top-right") x = targetCanvas.width - lW - mX;
-        else if (pos === "bottom-left") y = targetCanvas.height - lH - mY;
-        else if (pos === "bottom-right") { 
-            x = targetCanvas.width - lW - mX; 
-            y = targetCanvas.height - lH - mY; 
-        }
-        else if (pos === "center") { 
-            x = (targetCanvas.width - lW) / 2; 
-            y = (targetCanvas.height - lH) / 2; 
-        }
-        tCtx.drawImage(logo, x, y, lW, lH);
-    }
-}
+document.getElementById('nextBtn').onclick = () => { if (currentIdx < bgFiles.length - 1) { currentIdx++; loadCurrentImg(); } };
+document.getElementById('prevBtn').onclick = () => { if (currentIdx > 0) { currentIdx--; loadCurrentImg(); } };
 
 document.getElementById('downloadBtn').onclick = async () => {
     if (bgFiles.length === 0 || !logoImg) return alert("សូមជ្រើសរើសរូបភាព និង Logo!");
-    // TRACKING: Log the start of processing to Google
-    gtag('event', 'image_processing_start', {
-        'event_category': 'engagement',
-        'event_label': 'Batch Size',
-        'value': bgFiles.length
-    });
+    
+    gtag('event', 'image_processing_start', { 'event_category': 'engagement', 'event_label': 'Batch Size', 'value': bgFiles.length });
+
     const btn = document.getElementById('downloadBtn');
-    btn.disabled = true;
-    btn.innerText = "កំពុងរៀបចំ...";
-    resultsGallery.innerHTML = ""; 
-    resultsSection.style.display = "block";
+    btn.disabled = true; btn.innerText = "កំពុងរៀបចំ...";
+    resultsGallery.innerHTML = ""; resultsSection.style.display = "block";
     const zip = new JSZip();
     const offCanvas = document.createElement('canvas');
 
@@ -174,13 +211,15 @@ document.getElementById('downloadBtn').onclick = async () => {
         document.getElementById('progressBar').value = ((i+1)/bgFiles.length)*100;
     }
     currentZipBlob = await zip.generateAsync({type: "blob"});
-    btn.disabled = false; btn.innerText = "ចាប់ផ្តើមជាថ្មី!";
+    btn.disabled = false; btn.innerText = "រួចរាល់!";
     zipContainer.style.display = "block";
 };
 
 document.getElementById('finalZipBtn').onclick = () => {
     const link = document.createElement('a');
     link.href = URL.createObjectURL(currentZipBlob);
-    link.download = "LogoAdder_Results.zip";
+    link.download = "LogoAdder_Batch.zip";
     link.click();
 };
+
+loadConfig();
