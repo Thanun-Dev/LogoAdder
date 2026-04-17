@@ -1,151 +1,201 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="km">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
     <title>កម្មវិធីដាក់ Logo លើរូបភាព</title>
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-BRKXYXNKBY"></script>
+    <script
+      async
+      src="https://www.googletagmanager.com/gtag/js?id=G-BRKXYXNKBY"
+    ></script>
     <script>
       window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-BRKXYXNKBY');
+      function gtag() {
+        dataLayer.push(arguments);
+      }
+      gtag("js", new Date());
+      gtag("config", "G-BRKXYXNKBY");
     </script>
-    <link rel="icon" type="image/x-icon" href="myicon.ico">
-    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/x-icon" href="myicon.ico" />
+    <link rel="stylesheet" href="style.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-</head>
-<body>
+  </head>
+  <body>
+    <div id="drop-overlay" class="drop-zone-overlay">
+      <div class="drop-message">
+        <div class="drop-icon">📥</div>
+        <p>ទម្លាក់រូបភាពនៅទីនេះ (Drop Images Here)</p>
+      </div>
+    </div>
     <div class="app-container">
-        <aside class="sidebar">
-                <img src="LogoAdder.png" alt="Logo" class="brand-logo">
-            
-            <div class="control-section">
-                <div class="input-group">
-                    <label>ជ្រើសរើសរូបភាព</label>
-                    <input type="file" id="bgInput" multiple accept="image/*">
-                    <small id="fileCount" class="status-muted">រកមិនឃើញរូបភាព</small>
-                </div>
-
-                <div class="input-group">
-                    <label>ជ្រើសរើស Logo</label>
-                    <input type="file" id="logoInput" accept="image/*">
-                    <small id="logoStatus" class="status-muted">រកមិនឃើញ Logo</small>
-                </div>
-                <div class="input-group">
-    <label>កំណត់ទីតាំង Logo</label>
-    <div class="position-grid" id="posGrid">
-        <button type="button" class="pos-btn" data-value="top-left">
-            <div class="corner-icon tl"></div><span>លើ-ឆ្វេង</span>
-        </button>
-        <button type="button" class="pos-btn active" data-value="top-right">
-            <div class="corner-icon tr"></div><span>លើ-ស្តាំ</span>
-        </button>
-        <button type="button" class="pos-btn" data-value="bottom-left">
-            <div class="corner-icon bl"></div><span>ក្រោម-ឆ្វេង</span>
-        </button>
-        <button type="button" class="pos-btn" data-value="bottom-right">
-            <div class="corner-icon br"></div><span>ក្រោម-ស្តាំ</span>
-        </button>
-        <button type="button" class="pos-btn" data-value="center">
-    <div class="corner-icon mid"></div>
-    <span>កណ្ដាល</span>
-</button>
-    </div>
-    <input type="hidden" id="position" value="top-right">
-</div>
-
-                <div class="margin-row">
-                    <div class="input-group">
-                        <label>Margin Y</label>
-                        <input type="number" id="marginY" value="30" class="fancy-input">
-                    </div>
-                    <div class="input-group">
-                        <label>Margin X</label>
-                        <input type="number" id="marginX" value="30" class="fancy-input">
-                    </div>
-                </div>
-
-                <div class="input-group">
-                    <div class="label-row" style="display:flex; justify-content:space-between;">
-                        <label>ទំហំ Logo (%)</label>
-                        <span id="sizeVal">10%</span>
-                    </div>
-                    <input type="range" id="sizeSlider" min="5" max="50" value="10">
-                </div>
-                <div class="input-group">
-    <div class="label-row" style="display:flex; justify-content:space-between;">
-        <label>Logo Opacity (%)</label>
-        <span id="opacity-val">100%</span>
-    </div>
-    <input type="range" id="logo-opacity" min="0" max="100" value="100" class="styled-slider">
-</div>
-            </div>
-
-            <div class="action-area">
-                <button id="downloadBtn" class="primary-btn">ចាប់ផ្ដើមដំណើរការ</button>
-                <div id="zipDownloadContainer" style="display: none; width:100%;">
-                    <button id="finalZipBtn" class="secondary-btn">ទាញយកជា ZIP</button>
-                </div>
-            </div>
-        </aside>
-
-        <main class="main-content">
-            <div class="preview-stage">
-                <div class="preview-header">
-    <span class="live-indicator"></span>
-    <h3>Live Preview</h3>
-</div>
-                <div class="canvas-wrapper horizontal-mode">
-    <div id="canvas-placeholder" class="placeholder-overlay">
-        <div class="animated-logo-sample">LOGO</div>
-        <p class="placeholder-text">សូមជ្រើសរើសរូបភាពដើម្បីចាប់ផ្ដើម</p>
-    </div>
-    
-    <canvas id="mainCanvas"></canvas>
-    
-    <div id="nav-controls" class="hidden-nav">
-    <div class="nav-zone" id="prevZone">
-        <div class="nav-indicator">❮</div>
-    </div>
-    <div id="navStatus">0 / 0</div>
-    <div class="nav-zone" id="nextZone" style="justify-content: flex-end;">
-        <div class="nav-indicator">❯</div>
-    </div>
-</div>
-</div>
-            <div class="export-progress-container">
-    <div class="progress-info">
-        <span id="progress-text">កំពុងរៀបចំ........... (0%)</span>
-        <span id="progress-count">0 / 0</span>
-    </div>
-    <div class="pro-progress-bar">
-        <div id="export-progress-fill" class="progress-fill">
-            <div class="progress-glow"></div>
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <img src="LogoAdder.png" alt="Logo" class="brand-logo" draggable="false" />
         </div>
-    </div>
-</div>
+        <div class="control-section">
+          <div class="input-group">
+            <label>ជ្រើសរើសរូបភាព</label>
+            <input type="file" id="bgInput" multiple accept="image/*" />
+            <small id="fileCount" class="status-muted">រកមិនឃើញរូបភាព</small>
+          </div>
+          <div class="input-group">
+            <label>ជ្រើសរើស Logo</label>
+            <input type="file" id="logoInput" accept="image/*" />
+            <small id="logoStatus" class="status-muted">រកមិនឃើញ Logo</small>
+          </div>
+          <div class="input-group">
+            <label>កំណត់ទីតាំង Logo</label>
+            <div class="position-grid" id="posGrid">
+              <button type="button" class="pos-btn" data-value="top-left">
+                <div class="corner-icon tl"></div>
+                <span>លើ-ឆ្វេង</span>
+              </button>
+              <button
+                type="button"
+                class="pos-btn active"
+                data-value="top-right"
+              >
+                <div class="corner-icon tr"></div>
+                <span>លើ-ស្តាំ</span>
+              </button>
+              <button type="button" class="pos-btn" data-value="bottom-left">
+                <div class="corner-icon bl"></div>
+                <span>ក្រោម-ឆ្វេង</span>
+              </button>
+              <button type="button" class="pos-btn" data-value="bottom-right">
+                <div class="corner-icon br"></div>
+                <span>ក្រោម-ស្តាំ</span>
+              </button>
+              <button type="button" class="pos-btn" data-value="center">
+                <div class="corner-icon mid"></div>
+                <span>កណ្ដាល</span>
+              </button>
             </div>
-            
-            <div class="section-divider">
-                <div class="divider-line"></div>
+            <input type="hidden" id="position" value="top-right" />
+          </div>
+          <div class="margin-row">
+            <div class="input-group">
+              <label>Margin Y</label>
+              <input
+                type="number"
+                id="marginY"
+                value="30"
+                class="fancy-input"
+              />
             </div>
-            <div id="results-section" class="results-container">
-                <div class="gallery-header">
-                    
-                    <h3>រូបភាពដែលរួចរាល់</h3>
-                    <p>សង្កត់លើរូបដើម្បី Save ចូល Gallery (Hold To Save)</p>
-                </div>
-                <div id="resultsGallery" class="results-gallery"></div>
+            <div class="input-group">
+              <label>Margin X</label>
+              <input
+                type="number"
+                id="marginX"
+                value="30"
+                class="fancy-input"
+              />
             </div>
-            <div class="footer">
-                <p>បង្កើតឡើងដោយ <a href="https://www.facebook.com/thanun2903" target="_blank" class="author-link">
-            <span class="author">THANUN</span>
-        </a></p>
-                
+          </div>
+          <div class="input-group">
+            <div class="label-row">
+              <label>ទំហំ Logo (%)</label>
+              <span id="sizeVal">10%</span>
             </div>
-        </main>
+            <input
+              type="range"
+              id="sizeSlider"
+              min="5"
+              max="50"
+              value="10"
+              class="styled-slider"
+            />
+          </div>
+          <div class="input-group">
+            <div class="label-row">
+              <label>Logo Opacity (%)</label>
+              <span id="opacity-val">100%</span>
+            </div>
+            <input
+              type="range"
+              id="logo-opacity"
+              min="0"
+              max="100"
+              value="100"
+              class="styled-slider"
+            />
+          </div>
+        </div>
+        <div class="action-area">
+          <button id="downloadBtn" class="primary-btn">
+            ចាប់ផ្ដើមដំណើរការ
+          </button>
+          <div id="zipDownloadContainer" style="display: none; width: 100%">
+            <button id="finalZipBtn" class="secondary-btn">ទាញយកជា ZIP</button>
+          </div>
+        </div>
+      </aside>
+      <main class="main-content">
+        <div class="preview-stage">
+          <div class="preview-header">
+            <span class="live-indicator"></span>
+            <h3>Live Preview</h3>
+          </div>
+          <div class="canvas-wrapper horizontal-mode">
+            <div id="canvas-placeholder" class="placeholder-overlay">
+              <div class="animated-logo-sample">LOGO</div>
+              <p class="placeholder-text">សូមជ្រើសរើសរូបភាពដើម្បីចាប់ផ្ដើម</p>
+            </div>
+            <canvas id="mainCanvas"></canvas>
+            <div id="nav-controls" class="hidden-nav">
+              <div class="nav-zone" id="prevZone">
+                <div class="nav-indicator">❮</div>
+              </div>
+              <div id="navStatus">0 / 0</div>
+              <div
+                class="nav-zone"
+                id="nextZone"
+                style="justify-content: flex-end"
+              >
+                <div class="nav-indicator">❯</div>
+              </div>
+            </div>
+          </div>
+          <div class="export-progress-container">
+            <div class="progress-info">
+              <span id="progress-text">កំពុងរៀបចំ........... (0%)</span>
+              <span id="progress-count">0 / 0</span>
+            </div>
+            <div class="pro-progress-bar">
+              <div id="export-progress-fill" class="progress-fill">
+                <div class="progress-glow"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="section-divider">
+          <div class="divider-line"></div>
+        </div>
+        <div id="results-section" class="results-container">
+          <div class="gallery-header">
+            <h3>រូបភាពដែលរួចរាល់</h3>
+            <p>សង្កត់លើរូបដើម្បី Save ចូល Gallery (Hold To Save)</p>
+          </div>
+          <div id="resultsGallery" class="results-gallery"></div>
+        </div>
+        <footer class="footer">
+          <p>
+            បង្កើតឡើងដោយ
+            <a
+              href="https://www.facebook.com/thanun2903"
+              target="_blank"
+              class="author-link"
+            >
+              <span class="author" data-popup="Follow me on Facebook! 🇰🇭">THANUN</span>
+            </a>
+          </p>
+        </footer>
+      </main>
     </div>
     <script src="script.js"></script>
-</body>
+  </body>
 </html>
