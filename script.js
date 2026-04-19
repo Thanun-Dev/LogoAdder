@@ -126,7 +126,7 @@ function render(targetCanvas, bg, logo) {
     tCtx.drawImage(bg, 0, 0);
 
     if (logo) {
-        const smartM = Math.min(targetCanvas.width, targetCanvas.height) * 0.01;
+        const smartM = Math.min(targetCanvas.width, targetCanvas.height) * 0.005;
         const mX = (parseInt(document.getElementById('marginX').value) || 0) + smartM;
         const mY = (parseInt(document.getElementById('marginY').value) || 0) + smartM;
         const sizePct = document.getElementById('sizeSlider').value / 100;
