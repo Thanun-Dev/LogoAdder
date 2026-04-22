@@ -201,8 +201,8 @@ select {
   width: 100%;
 }
 
-input[type="file"],
-.fancy-input,
+input[type="file"]:hover,
+.fancy-input:hover,
 select:hover {
   border-color: var(--accent);
   box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
@@ -787,6 +787,25 @@ select:focus {
   gap: 20px;
   width: 100%;
   margin-top: 30px;
+}
+
+.show-more-btn {
+  display: none;
+  margin: 24px auto 0;
+  padding: 14px 28px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--grad-standard);
+  color: white;
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.18);
+}
+
+.show-more-btn:active {
+  transform: scale(0.97);
+  filter: brightness(0.9);
 }
 
 .footer {

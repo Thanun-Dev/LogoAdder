@@ -16,22 +16,50 @@ const zipContainer = document.getElementById('zipDownloadContainer');
 const posButtons = document.querySelectorAll('.pos-btn');
 const hiddenPosInput = document.getElementById('position');
 const dropOverlay = document.getElementById('drop-overlay');
+const ui = {
+    canvasPlaceholder: document.getElementById('canvas-placeholder'),
+    downloadBtn: document.getElementById('downloadBtn'),
+    exportProgressContainer: document.querySelector('.export-progress-container'),
+    fileCount: document.getElementById('fileCount'),
+    finalZipBtn: document.getElementById('finalZipBtn'),
+    logoOpacity: document.getElementById('logo-opacity'),
+    logoStatus: document.getElementById('logoStatus'),
+    marginX: document.getElementById('marginX'),
+    marginY: document.getElementById('marginY'),
+    navControls: document.getElementById('nav-controls'),
+    navStatus: document.getElementById('navStatus'),
+    opacityVal: document.getElementById('opacity-val'),
+    progressCount: document.getElementById('progress-count'),
+    progressFill: document.getElementById('export-progress-fill'),
+    progressText: document.getElementById('progress-text'),
+    sizeSlider: document.getElementById('sizeSlider'),
+    sizeVal: document.getElementById('sizeVal')
+};
 
 let bgFiles = [];
 let currentIdx = 0;
 let logoImg = null;
 let currentPreviewImg = null;
-let currentZipBlob = null;
+let currentZipDownloads = [];
+let resultPreviewUrls = [];
+let mobileShareState = null;
+let renderedPreviewCount = 0;
+
+const MAX_OUTPUT_PIXELS = 4000000;
+const ZIP_CHUNK_SIZE = 5;
+const MOBILE_SHARE_BATCH_SIZE = 10;
+const RESULT_PREVIEW_PAGE_SIZE = 20;
+const AUTO_DOWNLOAD_THRESHOLD = 20;
 
 // ==========================================
 // SECTOR 2: CONFIGURATION & PERSISTENCE
 // ==========================================
 function saveConfig(logoBase64 = null) {
     const config = {
-        marginX: document.getElementById('marginX').value,
-        marginY: document.getElementById('marginY').value,
-        size: document.getElementById('sizeSlider').value,
-        opacity: document.getElementById('logo-opacity').value,
+        marginX: ui.marginX.value,
+        marginY: ui.marginY.value,
+        size: ui.sizeSlider.value,
+        opacity: ui.logoOpacity.value,
         position: hiddenPosInput.value
     };
 
@@ -48,19 +76,19 @@ async function loadConfig() {
 
     if (saved) {
         const config = JSON.parse(saved);
-        document.getElementById('marginX').value = config.marginX;
-        document.getElementById('marginY').value = config.marginY;
-        document.getElementById('sizeSlider').value = config.size;
-        document.getElementById('sizeVal').innerText = config.size + "%";
-        document.getElementById('logo-opacity').value = config.opacity;
-        document.getElementById('opacity-val').innerText = config.opacity + "%";
+        ui.marginX.value = config.marginX;
+        ui.marginY.value = config.marginY;
+        ui.sizeSlider.value = config.size;
+        ui.sizeVal.innerText = config.size + "%";
+        ui.logoOpacity.value = config.opacity;
+        ui.opacityVal.innerText = config.opacity + "%";
         updatePositionUI(config.position);
     }
 
     if (savedLogo) {
         logoImg = new Image();
         logoImg.onload = () => {
-            document.getElementById('logoStatus').innerText = "Logo: បញ្ចូលស្វ័យប្រវត្តិ (Auto-Loaded)";
+            ui.logoStatus.innerText = "Logo: បញ្ចូលស្វ័យប្រវត្តិ (Auto-Loaded)";
             draw();
         };
         logoImg.src = savedLogo;
@@ -71,15 +99,208 @@ async function loadConfig() {
 // SECTOR 3: IMAGE HANDLING & DRAG-DROP
 // ==========================================
 function loadImage(file) {
-    return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const img = new Image();
-            img.onload = () => resolve(img);
-            img.src = e.target.result;
+    return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+
+        img.onload = () => {
+            URL.revokeObjectURL(url);
+            resolve(img);
         };
-        reader.readAsDataURL(file);
+
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error(`Image load failed: ${file.name}`));
+        };
+
+        img.src = url;
     });
+}
+
+function getOutputSize(width, height) {
+    const pixels = width * height;
+    if (pixels <= MAX_OUTPUT_PIXELS) return { width, height };
+
+    const scale = Math.sqrt(MAX_OUTPUT_PIXELS / pixels);
+    return {
+        width: Math.round(width * scale),
+        height: Math.round(height * scale)
+    };
+}
+
+function canvasToJpegBlob(targetCanvas, quality = 0.85) {
+    return new Promise((resolve, reject) => {
+        targetCanvas.toBlob((blob) => {
+            if (blob) resolve(blob);
+            else reject(new Error("Canvas export failed"));
+        }, "image/jpeg", quality);
+    });
+}
+
+async function canvasToThumbnailBlob(sourceCanvas) {
+    const maxThumbWidth = 360;
+    const scale = Math.min(1, maxThumbWidth / sourceCanvas.width);
+    const thumbCanvas = document.createElement('canvas');
+
+    thumbCanvas.width = Math.max(1, Math.round(sourceCanvas.width * scale));
+    thumbCanvas.height = Math.max(1, Math.round(sourceCanvas.height * scale));
+    thumbCanvas
+        .getContext('2d')
+        .drawImage(sourceCanvas, 0, 0, thumbCanvas.width, thumbCanvas.height);
+
+    const blob = await canvasToJpegBlob(thumbCanvas, 0.7);
+    resetCanvas(thumbCanvas);
+
+    return blob;
+}
+
+function yieldToBrowser() {
+    return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+function cleanupObjectUrls(urls) {
+    urls.forEach((url) => URL.revokeObjectURL(url));
+    urls.length = 0;
+}
+
+function resetCanvas(targetCanvas) {
+    const targetCtx = targetCanvas.getContext('2d');
+    targetCtx.clearRect(0, 0, targetCanvas.width, targetCanvas.height);
+    targetCanvas.width = 0;
+    targetCanvas.height = 0;
+}
+
+function downloadBlobUrl(url, fileName) {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+}
+
+function scheduleUrlRevoke(url) {
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+}
+
+function isMobileDevice() {
+    return window.matchMedia('(pointer: coarse)').matches || window.innerWidth <= 768;
+}
+
+function canShareFiles(files) {
+    try {
+        return Boolean(
+            navigator.share &&
+            navigator.canShare &&
+            navigator.canShare({ files })
+        );
+    } catch (error) {
+        return false;
+    }
+}
+
+function addResultPreview(blob) {
+    const previewUrl = URL.createObjectURL(blob);
+    resultPreviewUrls.push(previewUrl);
+
+    renderResultPreviewPage();
+}
+
+function ensureShowMoreButton() {
+    let showMoreBtn = document.getElementById('showMoreResultsBtn');
+
+    if (!showMoreBtn) {
+        showMoreBtn = document.createElement('button');
+        showMoreBtn.type = 'button';
+        showMoreBtn.id = 'showMoreResultsBtn';
+        showMoreBtn.className = 'show-more-btn';
+        showMoreBtn.onclick = () => renderResultPreviewPage(true);
+        resultsGallery.insertAdjacentElement('afterend', showMoreBtn);
+    }
+
+    return showMoreBtn;
+}
+
+function renderResultPreviewPage(showMore = false) {
+    if (showMore) {
+        renderedPreviewCount = Math.min(
+            renderedPreviewCount + RESULT_PREVIEW_PAGE_SIZE,
+            resultPreviewUrls.length
+        );
+    } else {
+        renderedPreviewCount = Math.min(
+            Math.max(renderedPreviewCount, Math.min(RESULT_PREVIEW_PAGE_SIZE, resultPreviewUrls.length)),
+            resultPreviewUrls.length
+        );
+    }
+
+    while (resultsGallery.children.length < renderedPreviewCount) {
+        const previewUrl = resultPreviewUrls[resultsGallery.children.length];
+        const resultImg = new Image();
+
+        resultImg.src = previewUrl;
+        resultImg.className = "result-img";
+        resultImg.draggable = false;
+        resultsGallery.appendChild(resultImg);
+    }
+
+    updateShowMoreButton();
+}
+
+function updateShowMoreButton() {
+    const showMoreBtn = ensureShowMoreButton();
+    const remainingCount = resultPreviewUrls.length - renderedPreviewCount;
+
+    showMoreBtn.style.display = remainingCount > 0 ? "block" : "none";
+    showMoreBtn.innerText = remainingCount > 0
+        ? `Show More (${Math.min(RESULT_PREVIEW_PAGE_SIZE, remainingCount)})`
+        : "";
+}
+
+async function processImageToBlob(file, offCanvas) {
+    const img = await loadImage(file);
+    const outputSize = getOutputSize(img.width, img.height);
+
+    render(offCanvas, img, logoImg, outputSize.width, outputSize.height);
+
+    const outputBlob = await canvasToJpegBlob(offCanvas, 0.85);
+    const previewBlob = await canvasToThumbnailBlob(offCanvas);
+    resetCanvas(offCanvas);
+
+    return { outputBlob, previewBlob };
+}
+
+function updateExportProgress(processedCount, totalCount) {
+    const percent = Math.round((processedCount / totalCount) * 100);
+
+    ui.progressFill.style.width = percent + "%";
+    ui.progressText.innerText = `កំពុងរៀបចំ... (${percent}%)`;
+    ui.progressCount.innerText = `${processedCount} / ${totalCount}`;
+}
+
+function setPrimaryButtonState(disabled, text) {
+    ui.downloadBtn.disabled = disabled;
+    ui.downloadBtn.innerText = text;
+}
+
+function showProcessingError(error) {
+    setPrimaryButtonState(false, "ចាប់ផ្ដើមដំណើរការ");
+    ui.progressText.innerText = "មានបញ្ហាក្នុងការរៀបចំរូបភាព";
+    alert(error.message || "Image processing failed");
+}
+
+function resetExportState() {
+    resultsSection.style.display = 'block';
+    resultsGallery.innerHTML = "";
+    cleanupObjectUrls(currentZipDownloads.map((item) => item.url));
+    cleanupObjectUrls(resultPreviewUrls);
+    currentZipDownloads = [];
+    mobileShareState = null;
+    renderedPreviewCount = 0;
+    zipContainer.style.display = "none";
+    ui.finalZipBtn.disabled = false;
+    updateShowMoreButton();
+    ui.exportProgressContainer.style.display = 'block';
 }
 
 // Global Drag and Drop Listeners
@@ -111,7 +332,7 @@ bgInput.onchange = (e) => {
 };
 
 function handleFileSelection() {
-    document.getElementById('fileCount').innerText = `${bgFiles.length} រូបភាពដែលបានជ្រើសរើស`;
+    ui.fileCount.innerText = `${bgFiles.length} រូបភាពដែលបានជ្រើសរើស`;
     currentIdx = 0;
     if (bgFiles.length > 0) loadCurrentImg();
 }
@@ -119,33 +340,33 @@ function handleFileSelection() {
 // ==========================================
 // SECTOR 4: CORE RENDERING ENGINE
 // ==========================================
-function render(targetCanvas, bg, logo) {
+function render(targetCanvas, bg, logo, outputWidth = bg.width, outputHeight = bg.height) {
     const tCtx = targetCanvas.getContext('2d');
-    targetCanvas.width = bg.width;
-    targetCanvas.height = bg.height;
-    tCtx.drawImage(bg, 0, 0);
+    targetCanvas.width = outputWidth;
+    targetCanvas.height = outputHeight;
+    tCtx.drawImage(bg, 0, 0, outputWidth, outputHeight);
 
     if (logo) {
-        const smartM = Math.min(targetCanvas.width, targetCanvas.height) * 0.005;
-        const mX = (parseInt(document.getElementById('marginX').value) || 0) + smartM;
-        const mY = (parseInt(document.getElementById('marginY').value) || 0) + smartM;
-        const sizePct = document.getElementById('sizeSlider').value / 100;
-        const opacityPct = document.getElementById('logo-opacity').value / 100;
+        const smartM = Math.min(outputWidth, outputHeight) * 0.005;
+        const mX = (parseInt(ui.marginX.value) || 0) + smartM;
+        const mY = (parseInt(ui.marginY.value) || 0) + smartM;
+        const sizePct = ui.sizeSlider.value / 100;
+        const opacityPct = ui.logoOpacity.value / 100;
         const pos = hiddenPosInput.value;
         
-        const lW = targetCanvas.width * sizePct;
+        const lW = outputWidth * sizePct;
         const lH = (logo.height / logo.width) * lW;
 
         let x = mX, y = mY;
 
-        if (pos === "top-right") x = targetCanvas.width - lW - mX;
-        else if (pos === "bottom-left") y = targetCanvas.height - lH - mY;
+        if (pos === "top-right") x = outputWidth - lW - mX;
+        else if (pos === "bottom-left") y = outputHeight - lH - mY;
         else if (pos === "bottom-right") {
-            x = targetCanvas.width - lW - mX;
-            y = targetCanvas.height - lH - mY;
+            x = outputWidth - lW - mX;
+            y = outputHeight - lH - mY;
         } else if (pos === "center") {
-            x = (targetCanvas.width - lW) / 2;
-            y = (targetCanvas.height - lH) / 2;
+            x = (outputWidth - lW) / 2;
+            y = (outputHeight - lH) / 2;
         }
 
         tCtx.save();
@@ -175,14 +396,14 @@ posButtons.forEach(btn => {
     });
 });
 
-document.getElementById('sizeSlider').oninput = (e) => {
-    document.getElementById('sizeVal').innerText = e.target.value + "%";
+ui.sizeSlider.oninput = (e) => {
+    ui.sizeVal.innerText = e.target.value + "%";
     saveConfig();
     draw();
 };
 
-document.getElementById('logo-opacity').oninput = (e) => {
-    document.getElementById('opacity-val').innerText = e.target.value + "%";
+ui.logoOpacity.oninput = (e) => {
+    ui.opacityVal.innerText = e.target.value + "%";
     saveConfig();
     draw();
 };
@@ -195,17 +416,14 @@ document.querySelectorAll('.fancy-input').forEach(el => {
 // SECTOR 6: BATCH EXPORT & NAVIGATION
 // ==========================================
 async function loadCurrentImg() {
-    const placeholder = document.getElementById('canvas-placeholder');
-    const nav = document.getElementById('nav-controls');
-
     if (bgFiles.length > 0) {
-        if (placeholder) placeholder.style.display = 'none';
-        if (nav) nav.classList.remove('hidden-nav');
+        if (ui.canvasPlaceholder) ui.canvasPlaceholder.style.display = 'none';
+        if (ui.navControls) ui.navControls.classList.remove('hidden-nav');
         canvas.classList.add('active-canvas');
     }
 
     currentPreviewImg = await loadImage(bgFiles[currentIdx]);
-    document.getElementById('navStatus').innerText = `${currentIdx + 1} / ${bgFiles.length}`;
+    ui.navStatus.innerText = `${currentIdx + 1} / ${bgFiles.length}`;
     draw();
 }
 
@@ -217,59 +435,181 @@ document.getElementById('prevZone').onclick = () => {
     if (currentIdx > 0) { currentIdx--; loadCurrentImg(); }
 };
 
-document.getElementById('downloadBtn').onclick = async () => {
+ui.downloadBtn.onclick = async () => {
     if (bgFiles.length === 0 || !logoImg) return alert("សូមជ្រើសរើសរូបភាព និង Logo!");
 
-    const btn = document.getElementById('downloadBtn');
-    btn.disabled = true;
-    btn.innerText = "កំពុងរៀបចំ...";
+    const btn = ui.downloadBtn;
+    setPrimaryButtonState(true, "កំពុងរៀបចំ...");
 
-    resultsSection.style.display = 'block';
-    resultsGallery.innerHTML = "";
+    resetExportState();
 
-    const zip = new JSZip();
-    const offCanvas = document.createElement('canvas');
-    const progressContainer = document.querySelector('.export-progress-container');
-    const progressFill = document.getElementById('export-progress-fill');
-    
-    progressContainer.style.display = 'block';
-
-    for (let i = 0; i < bgFiles.length; i++) {
-        const img = await loadImage(bgFiles[i]);
-        let w = img.width, h = img.height;
-        if (w > 2500) { h = (2500 / w) * h; w = 2500; }
-
-        offCanvas.width = w; offCanvas.height = h;
-        render(offCanvas, img, logoImg);
-
-        const dataUrl = offCanvas.toDataURL('image/jpeg', 0.85);
-        const percent = Math.round(((i + 1) / bgFiles.length) * 100);
-
-        progressFill.style.width = percent + "%";
-        document.getElementById('progress-text').innerText = `កំពុងរៀបចំ... (${percent}%)`;
-        document.getElementById('progress-count').innerText = `${i + 1} / ${bgFiles.length}`;
-
-        const resultImg = new Image();
-        resultImg.src = dataUrl;
-        resultImg.className = "result-img";
-        resultImg.draggable = false;
-        resultsGallery.appendChild(resultImg);
-
-        zip.file(`LogoAdder_${i + 1}.jpg`, dataUrl.split(',')[1], { base64: true });
+    if (isMobileDevice() && navigator.share && navigator.canShare) {
+        await startMobileShareFlow(btn);
+        return;
     }
 
-    currentZipBlob = await zip.generateAsync({ type: "blob" });
-    btn.disabled = false;
-    btn.innerText = "ចាប់ផ្តើមជាថ្មី!";
-    zipContainer.style.display = "block";
-    resultsSection.scrollIntoView({ behavior: 'smooth' });
+    await startZipExport(btn, { chunked: false });
 };
 
-document.getElementById('finalZipBtn').onclick = () => {
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(currentZipBlob);
-    link.download = "LogoAdder_Batch.zip";
-    link.click();
+async function startMobileShareFlow(btn) {
+    mobileShareState = {
+        nextIndex: 0,
+        total: bgFiles.length,
+        currentFiles: [],
+        currentLabel: ""
+    };
+
+    ui.progressText.innerText = "កំពុងរៀបចំ 10 រូបដំបូង...";
+    await prepareNextMobileShareBatch(btn);
+}
+
+async function prepareNextMobileShareBatch(btn) {
+    if (!mobileShareState) return;
+
+    const offCanvas = document.createElement('canvas');
+    const start = mobileShareState.nextIndex;
+    const end = Math.min(start + MOBILE_SHARE_BATCH_SIZE, mobileShareState.total);
+
+    try {
+        mobileShareState.currentFiles = [];
+        mobileShareState.currentLabel = `${start + 1}-${end}`;
+
+        for (let i = start; i < end; i++) {
+            const { outputBlob, previewBlob } = await processImageToBlob(bgFiles[i], offCanvas);
+            const outputName = `LogoAdder_${i + 1}.jpg`;
+            const shareFile = new File([outputBlob], outputName, { type: "image/jpeg" });
+
+            mobileShareState.currentFiles.push(shareFile);
+            addResultPreview(previewBlob);
+            updateExportProgress(i + 1, mobileShareState.total);
+            await yieldToBrowser();
+        }
+
+        resetCanvas(offCanvas);
+
+        if (!canShareFiles(mobileShareState.currentFiles)) {
+            mobileShareState = null;
+            await startZipExport(btn, { chunked: true });
+            return;
+        }
+
+        zipContainer.style.display = "block";
+        ui.finalZipBtn.disabled = false;
+        ui.finalZipBtn.innerText = `Save ${mobileShareState.currentLabel} Photos`;
+        ui.progressText.innerText = `រូប ${mobileShareState.currentLabel} រួចរាល់`;
+        setPrimaryButtonState(true, "ចុច Save Photos ខាងក្រោម");
+    } catch (error) {
+        resetCanvas(offCanvas);
+        mobileShareState = null;
+        showProcessingError(error);
+    }
+}
+
+async function sharePreparedMobileBatch() {
+    if (!mobileShareState || mobileShareState.currentFiles.length === 0) return;
+
+    const btn = ui.downloadBtn;
+    const shareBtn = ui.finalZipBtn;
+    const sharedCount = mobileShareState.currentFiles.length;
+    const batchEnd = mobileShareState.nextIndex + sharedCount;
+
+    try {
+        shareBtn.disabled = true;
+        await navigator.share({
+            files: mobileShareState.currentFiles,
+            title: "LogoAdder Photos"
+        });
+
+        mobileShareState.nextIndex = batchEnd;
+        mobileShareState.currentFiles = [];
+
+        if (mobileShareState.nextIndex >= mobileShareState.total) {
+            setPrimaryButtonState(false, "ចាប់ផ្តើមជាថ្មី!");
+            shareBtn.disabled = false;
+            zipContainer.style.display = "none";
+            ui.progressText.innerText = "រួចរាល់! (100%)";
+            resultsSection.scrollIntoView({ behavior: 'smooth' });
+            mobileShareState = null;
+            return;
+        }
+
+        setPrimaryButtonState(true, "កំពុងរៀបចំ...");
+        ui.progressText.innerText = "កំពុងរៀបចំរូបបន្ទាប់...";
+        await prepareNextMobileShareBatch(btn);
+        shareBtn.disabled = false;
+    } catch (error) {
+        shareBtn.disabled = false;
+        if (error.name !== "AbortError") {
+            alert(error.message || "Could not open save/share menu");
+        }
+    }
+}
+
+async function startZipExport(btn, options = {}) {
+    const offCanvas = document.createElement('canvas');
+    const useChunkedZip = Boolean(options.chunked);
+    const filesPerZip = useChunkedZip ? ZIP_CHUNK_SIZE : bgFiles.length;
+    const shouldAutoDownloadChunks = useChunkedZip && bgFiles.length > AUTO_DOWNLOAD_THRESHOLD;
+
+    try {
+        for (let start = 0; start < bgFiles.length; start += filesPerZip) {
+            const zip = new JSZip();
+            const end = Math.min(start + filesPerZip, bgFiles.length);
+
+            for (let i = start; i < end; i++) {
+                const { outputBlob, previewBlob } = await processImageToBlob(bgFiles[i], offCanvas);
+
+                addResultPreview(previewBlob);
+                updateExportProgress(i + 1, bgFiles.length);
+                zip.file(`LogoAdder_${i + 1}.jpg`, outputBlob);
+                await yieldToBrowser();
+            }
+
+            const zipBlob = await zip.generateAsync({
+                type: "blob",
+                compression: "STORE",
+                streamFiles: true
+            });
+            const chunkNumber = Math.floor(start / filesPerZip) + 1;
+            const zipName = useChunkedZip && bgFiles.length > filesPerZip
+                ? `LogoAdder_Batch_${chunkNumber}.zip`
+                : "LogoAdder_Batch.zip";
+            const zipUrl = URL.createObjectURL(zipBlob);
+
+            if (shouldAutoDownloadChunks) {
+                downloadBlobUrl(zipUrl, zipName);
+                scheduleUrlRevoke(zipUrl);
+            } else {
+                currentZipDownloads.push({ name: zipName, url: zipUrl });
+            }
+
+            await yieldToBrowser();
+        }
+
+        resetCanvas(offCanvas);
+        setPrimaryButtonState(false, "ចាប់ផ្តើមជាថ្មី!");
+        zipContainer.style.display = shouldAutoDownloadChunks ? "none" : "block";
+        if (!shouldAutoDownloadChunks) {
+            ui.finalZipBtn.innerText = currentZipDownloads.length > 1
+                ? `ទាញយកជា ZIP (${currentZipDownloads.length})`
+                : "ទាញយកជា ZIP";
+        }
+        resultsSection.scrollIntoView({ behavior: 'smooth' });
+    } catch (error) {
+        resetCanvas(offCanvas);
+        showProcessingError(error);
+    }
+}
+
+ui.finalZipBtn.onclick = () => {
+    if (mobileShareState) {
+        sharePreparedMobileBatch();
+        return;
+    }
+
+    currentZipDownloads.forEach((item, index) => {
+        setTimeout(() => downloadBlobUrl(item.url, item.name), index * 300);
+    });
 };
 
 logoInput.onchange = async (e) => {
@@ -278,7 +618,7 @@ logoInput.onchange = async (e) => {
         reader.onload = (event) => {
             logoImg = new Image();
             logoImg.onload = () => {
-                document.getElementById('logoStatus').innerText = `Logo: ${e.target.files[0].name}`;
+                ui.logoStatus.innerText = `Logo: ${e.target.files[0].name}`;
                 saveConfig(event.target.result);
                 draw();
             };
