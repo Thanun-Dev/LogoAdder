@@ -549,7 +549,7 @@ async function processImageToBlob(file, offCanvas) {
 
     render(offCanvas, img, logoImg, outputSize.width, outputSize.height);
 
-    const outputBlob = await canvasToJpegBlob(offCanvas, 0.85);
+    const outputBlob = await canvasToJpegBlob(offCanvas, 0.9);
     const previewBlob = await canvasToThumbnailBlob(offCanvas);
     resetCanvas(offCanvas);
 
