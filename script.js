@@ -21,6 +21,11 @@ const ui = {
     changeSaveFolderBtn: document.getElementById('changeSaveFolderBtn'),
     downloadBtn: document.getElementById('downloadBtn'),
     exportProgressContainer: document.querySelector('.export-progress-container'),
+    exportSummaryCard: document.getElementById('exportSummaryCard'),
+    exportSummarySaved: document.getElementById('exportSummarySaved'),
+    exportSummarySkipped: document.getElementById('exportSummarySkipped'),
+    exportSummaryStatus: document.getElementById('exportSummaryStatus'),
+    exportSummaryTitle: document.getElementById('exportSummaryTitle'),
     fileCount: document.getElementById('fileCount'),
     finalZipBtn: document.getElementById('finalZipBtn'),
     logoOpacity: document.getElementById('logo-opacity'),
@@ -49,12 +54,15 @@ let androidSaveDirectoryHandle = null;
 let isProcessing = false;
 let pendingAppReload = false;
 let hasReloadedForUpdate = false;
+let exportSummaryState = null;
 
 const MAX_OUTPUT_PIXELS = 4000000;
 const ZIP_CHUNK_SIZE = 5;
 const MOBILE_SHARE_BATCH_SIZE = 10;
 const RESULT_PREVIEW_PAGE_SIZE = 20;
 const AUTO_DOWNLOAD_THRESHOLD = 20;
+const ANDROID_FILE_TIMEOUT_MS = 20000;
+const ANDROID_HEIC_COOLDOWN_MS = 60;
 const DIRECTORY_DB_NAME = "logoAdderDirectoryAccess";
 const DIRECTORY_STORE_NAME = "handles";
 const DIRECTORY_HANDLE_KEY = "androidSaveDirectory";
@@ -90,6 +98,106 @@ window.logoAdderPwaState = {
     isProcessingActive: () => isProcessing,
     requestSafeReload: requestSafeAppReload
 };
+
+function resetExportSummary() {
+    exportSummaryState = null;
+
+    if (!ui.exportSummaryCard) {
+        return;
+    }
+
+    ui.exportSummaryCard.style.display = "none";
+    ui.exportSummaryTitle.innerText = "ស្ថានភាពការដំណើរការ";
+    ui.exportSummarySaved.innerText = "0 / 0";
+    ui.exportSummarySkipped.innerText = "0";
+    ui.exportSummaryStatus.innerText = "កំពុងរៀបចំ...";
+}
+
+function renderExportSummary() {
+    if (!ui.exportSummaryCard || !exportSummaryState) {
+        return;
+    }
+
+    ui.exportSummaryCard.style.display = exportSummaryState.visible ? "block" : "none";
+    if (!exportSummaryState.visible) {
+        return;
+    }
+
+    ui.exportSummaryTitle.innerText = exportSummaryState.title;
+    ui.exportSummarySaved.innerText = `${exportSummaryState.saved} / ${exportSummaryState.total}`;
+    ui.exportSummarySkipped.innerText = `${exportSummaryState.skipped}`;
+    ui.exportSummaryStatus.innerText = exportSummaryState.status;
+}
+
+function beginExportSummary({ title, total, status, visible }) {
+    exportSummaryState = {
+        saved: 0,
+        skipped: 0,
+        status,
+        title,
+        total,
+        visible
+    };
+    renderExportSummary();
+}
+
+function updateExportSummary({ saved, skipped, status, visible }) {
+    if (!exportSummaryState) {
+        return;
+    }
+
+    if (typeof saved === "number") {
+        exportSummaryState.saved = saved;
+    }
+
+    if (typeof skipped === "number") {
+        exportSummaryState.skipped = skipped;
+    }
+
+    if (typeof status === "string") {
+        exportSummaryState.status = status;
+    }
+
+    if (typeof visible === "boolean") {
+        exportSummaryState.visible = visible;
+    }
+
+    renderExportSummary();
+}
+
+function withTimeout(promise, timeoutMs, timeoutMessage) {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+
+        promise
+            .then((value) => {
+                clearTimeout(timer);
+                resolve(value);
+            })
+            .catch((error) => {
+                clearTimeout(timer);
+                reject(error);
+            });
+    });
+}
+
+async function processAndroidBatchFile(file) {
+    const workCanvas = document.createElement('canvas');
+
+    try {
+        const result = await withTimeout(
+            processImageToBlob(file, workCanvas),
+            ANDROID_FILE_TIMEOUT_MS,
+            `HEIC processing timed out: ${file.name}`
+        );
+
+        return { ok: true, ...result };
+    } catch (error) {
+        return { ok: false, error };
+    } finally {
+        resetCanvas(workCanvas);
+    }
+}
 
 // ==========================================
 // SECTOR 2: CONFIGURATION & PERSISTENCE
@@ -310,8 +418,8 @@ async function canvasToThumbnailBlob(sourceCanvas) {
     return blob;
 }
 
-function yieldToBrowser() {
-    return new Promise((resolve) => setTimeout(resolve, 0));
+function yieldToBrowser(delayMs = 0) {
+    return new Promise((resolve) => setTimeout(resolve, delayMs));
 }
 
 function cleanupObjectUrls(urls) {
@@ -571,6 +679,7 @@ function setPrimaryButtonState(disabled, text) {
 
 function showProcessingError(error) {
     setProcessingState(false);
+    resetExportSummary();
     setPrimaryButtonState(false, "ចាប់ផ្ដើមដំណើរការ");
     ui.progressText.innerText = "មានបញ្ហាក្នុងការរៀបចំរូបភាព";
     alert(error.message || "Image processing failed");
@@ -604,6 +713,7 @@ function resetExportState() {
     ui.finalZipBtn.disabled = false;
     updateShowMoreButton();
     ui.exportProgressContainer.style.display = 'block';
+    resetExportSummary();
 }
 
 async function requestAndroidSaveDirectory() {
@@ -821,11 +931,17 @@ ui.downloadBtn.onclick = async () => {
 };
 
 async function startAndroidChromeFolderExport(btn) {
-    const offCanvas = document.createElement('canvas');
     let allowRetryWithFreshPicker = true;
 
     while (true) {
         try {
+            beginExportSummary({
+                title: "ស្ថានភាពការរក្សាទុក",
+                total: bgFiles.length,
+                status: "កំពុងរក្សាទុកទៅថតដែលបានជ្រើស",
+                visible: true
+            });
+
             const restoredHandle = await restorePersistedAndroidDirectoryHandle();
             ui.progressText.innerText = restoredHandle
                 ? "កំពុងប្រើថតដែលបានចងចាំ"
@@ -845,30 +961,50 @@ async function startAndroidChromeFolderExport(btn) {
             }
 
             const existingDirectoryFileNames = await collectExistingDirectoryFileNames(directoryHandle);
+            let savedCount = 0;
+            let skippedCount = 0;
 
             for (let i = 0; i < bgFiles.length; i++) {
-                const { outputBlob, previewBlob } = await processImageToBlob(bgFiles[i], offCanvas);
-                const fileName = getMobileOutputFileName(bgFiles[i]);
+                const result = await processAndroidBatchFile(bgFiles[i]);
 
-                addResultPreview(previewBlob);
-                await writeBlobToDirectory(directoryHandle, fileName, outputBlob, existingDirectoryFileNames);
+                if (result.ok) {
+                    const fileName = getMobileOutputFileName(bgFiles[i]);
+                    addResultPreview(result.previewBlob);
+                    await writeBlobToDirectory(directoryHandle, fileName, result.outputBlob, existingDirectoryFileNames);
+                    savedCount += 1;
+                } else {
+                    skippedCount += 1;
+                }
+
                 updateExportProgress(i + 1, bgFiles.length);
-                await yieldToBrowser();
+                updateExportSummary({
+                    saved: savedCount,
+                    skipped: skippedCount,
+                    status: skippedCount > 0
+                        ? `កំពុងរក្សាទុកទៅថតដែលបានជ្រើស • បានរំលង ${skippedCount} រូប`
+                        : "កំពុងរក្សាទុកទៅថតដែលបានជ្រើស"
+                });
+                await yieldToBrowser(isHeicFile(bgFiles[i]) ? ANDROID_HEIC_COOLDOWN_MS : 0);
             }
 
-            resetCanvas(offCanvas);
             setPrimaryButtonState(false, "ចាប់ផ្តើមជាថ្មី!");
             zipContainer.style.display = "none";
-            showAndroidSaveComplete(bgFiles.length);
+            showAndroidSaveComplete(savedCount);
+            updateExportSummary({
+                saved: savedCount,
+                skipped: skippedCount,
+                status: skippedCount > 0
+                    ? `រួចរាល់ • បានរំលង ${skippedCount} រូប`
+                    : "រួចរាល់"
+            });
             setProcessingState(false);
             resultsSection.scrollIntoView({ behavior: 'smooth' });
             return;
         } catch (error) {
-            resetCanvas(offCanvas);
-
             if (error.name === "AbortError") {
                 zipContainer.style.display = "none";
                 setProcessingState(false);
+                resetExportSummary();
                 setPrimaryButtonState(false, "ចាប់ផ្ដើមដំណើរការ");
                 ui.progressText.innerText = "បានបោះបង់ការជ្រើសថត";
                 ui.progressCount.innerText = `0 / ${bgFiles.length}`;
@@ -969,6 +1105,17 @@ async function sharePreparedMobileBatch() {
             shareBtn.disabled = false;
             zipContainer.style.display = "none";
             ui.progressText.innerText = "រួចរាល់! (100%)";
+            beginExportSummary({
+                title: "ស្ថានភាពការបញ្ចប់",
+                total: mobileShareState.total,
+                status: "បានចែករំលែក/រក្សាទុករួច",
+                visible: true
+            });
+            updateExportSummary({
+                saved: mobileShareState.total,
+                skipped: 0,
+                status: "រួចរាល់"
+            });
             setProcessingState(false);
             resultsSection.scrollIntoView({ behavior: 'smooth' });
             mobileShareState = null;
