@@ -51,6 +51,9 @@ const ZIP_CHUNK_SIZE = 5;
 const MOBILE_SHARE_BATCH_SIZE = 10;
 const RESULT_PREVIEW_PAGE_SIZE = 20;
 const AUTO_DOWNLOAD_THRESHOLD = 20;
+const DIRECTORY_DB_NAME = "logoAdderDirectoryAccess";
+const DIRECTORY_STORE_NAME = "handles";
+const DIRECTORY_HANDLE_KEY = "androidSaveDirectory";
 
 // ==========================================
 // SECTOR 2: CONFIGURATION & PERSISTENCE
@@ -159,6 +162,74 @@ async function convertHeicToJpegBlob(file) {
     }
 }
 
+function openDirectoryHandleDb() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DIRECTORY_DB_NAME, 1);
+
+        request.onupgradeneeded = () => {
+            const db = request.result;
+            if (!db.objectStoreNames.contains(DIRECTORY_STORE_NAME)) {
+                db.createObjectStore(DIRECTORY_STORE_NAME);
+            }
+        };
+
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error("IndexedDB open failed"));
+    });
+}
+
+async function savePersistedDirectoryHandle(handle) {
+    const db = await openDirectoryHandleDb();
+
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(DIRECTORY_STORE_NAME, "readwrite");
+        transaction.objectStore(DIRECTORY_STORE_NAME).put(handle, DIRECTORY_HANDLE_KEY);
+        transaction.oncomplete = () => {
+            db.close();
+            resolve();
+        };
+        transaction.onerror = () => {
+            db.close();
+            reject(transaction.error || new Error("Directory handle save failed"));
+        };
+    });
+}
+
+async function loadPersistedDirectoryHandle() {
+    const db = await openDirectoryHandleDb();
+
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(DIRECTORY_STORE_NAME, "readonly");
+        const request = transaction.objectStore(DIRECTORY_STORE_NAME).get(DIRECTORY_HANDLE_KEY);
+
+        request.onsuccess = () => {
+            db.close();
+            resolve(request.result || null);
+        };
+        request.onerror = () => {
+            db.close();
+            reject(request.error || new Error("Directory handle load failed"));
+        };
+    });
+}
+
+async function clearPersistedDirectoryHandle() {
+    const db = await openDirectoryHandleDb();
+
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(DIRECTORY_STORE_NAME, "readwrite");
+        transaction.objectStore(DIRECTORY_STORE_NAME).delete(DIRECTORY_HANDLE_KEY);
+        transaction.oncomplete = () => {
+            db.close();
+            resolve();
+        };
+        transaction.onerror = () => {
+            db.close();
+            reject(transaction.error || new Error("Directory handle delete failed"));
+        };
+    });
+}
+
 function isSupportedImageFile(file) {
     return Boolean(
         (file.type && file.type.startsWith('image/')) ||
@@ -252,6 +323,40 @@ function canUseAndroidFolderSave() {
         window.FileSystemFileHandle &&
         window.FileSystemDirectoryHandle
     );
+}
+
+async function queryDirectoryPermission(directoryHandle) {
+    if (!directoryHandle || !directoryHandle.queryPermission) {
+        return "prompt";
+    }
+
+    return directoryHandle.queryPermission({ mode: "readwrite" });
+}
+
+async function requestDirectoryPermission(directoryHandle) {
+    if (!directoryHandle || !directoryHandle.requestPermission) {
+        return "denied";
+    }
+
+    return directoryHandle.requestPermission({ mode: "readwrite" });
+}
+
+async function restorePersistedAndroidDirectoryHandle() {
+    if (androidSaveDirectoryHandle) {
+        return androidSaveDirectoryHandle;
+    }
+
+    try {
+        const handle = await loadPersistedDirectoryHandle();
+        if (!handle) {
+            return null;
+        }
+
+        androidSaveDirectoryHandle = handle;
+        return handle;
+    } catch (error) {
+        return null;
+    }
 }
 
 function canShareFiles(files) {
@@ -356,8 +461,14 @@ function showProcessingError(error) {
     alert(error.message || "Image processing failed");
 }
 
-function resetAndroidFolderSaveState() {
+async function resetAndroidFolderSaveState() {
     androidSaveDirectoryHandle = null;
+
+    try {
+        await clearPersistedDirectoryHandle();
+    } catch (error) {
+        // Ignore persistence cleanup failures and continue.
+    }
 }
 
 function resetExportState() {
@@ -382,12 +493,15 @@ async function requestAndroidSaveDirectory() {
     });
 
     androidSaveDirectoryHandle = directoryHandle;
+    await savePersistedDirectoryHandle(directoryHandle);
     return directoryHandle;
 }
 
 async function getAndroidSaveDirectory() {
-    if (androidSaveDirectoryHandle) {
-        return androidSaveDirectoryHandle;
+    const restoredHandle = await restorePersistedAndroidDirectoryHandle();
+
+    if (restoredHandle) {
+        return restoredHandle;
     }
 
     return requestAndroidSaveDirectory();
@@ -560,42 +674,64 @@ ui.downloadBtn.onclick = async () => {
 
 async function startAndroidChromeFolderExport(btn) {
     const offCanvas = document.createElement('canvas');
+    let allowRetryWithFreshPicker = true;
 
-    try {
-        ui.progressText.innerText = "សូមជ្រើសថតក្នុង Pictures ដើម្បីរក្សាទុករូប";
-        const directoryHandle = await getAndroidSaveDirectory();
+    while (true) {
+        try {
+            ui.progressText.innerText = "សូមជ្រើសថតក្នុង Pictures ដើម្បីរក្សាទុករូប";
+            const directoryHandle = await getAndroidSaveDirectory();
+            let permissionState = await queryDirectoryPermission(directoryHandle);
 
-        for (let i = 0; i < bgFiles.length; i++) {
-            const { outputBlob, previewBlob } = await processImageToBlob(bgFiles[i], offCanvas);
-            const fileName = `LogoAdder_${i + 1}.jpg`;
+            if (permissionState !== "granted") {
+                ui.progressText.innerText = "Chrome ត្រូវការការអនុញ្ញាតសម្រាប់ថតដែលបានរក្សាទុក";
+                permissionState = await requestDirectoryPermission(directoryHandle);
+            }
 
-            addResultPreview(previewBlob);
-            await writeBlobToDirectory(directoryHandle, fileName, outputBlob);
-            updateExportProgress(i + 1, bgFiles.length);
-            await yieldToBrowser();
-        }
+            if (permissionState !== "granted") {
+                throw new Error("Stored directory permission denied");
+            }
 
-        resetCanvas(offCanvas);
-        setPrimaryButtonState(false, "ចាប់ផ្តើមជាថ្មី!");
-        zipContainer.style.display = "none";
-        showAndroidSaveComplete(bgFiles.length);
-        resultsSection.scrollIntoView({ behavior: 'smooth' });
-    } catch (error) {
-        resetCanvas(offCanvas);
+            for (let i = 0; i < bgFiles.length; i++) {
+                const { outputBlob, previewBlob } = await processImageToBlob(bgFiles[i], offCanvas);
+                const fileName = `LogoAdder_${i + 1}.jpg`;
 
-        if (error.name === "AbortError") {
+                addResultPreview(previewBlob);
+                await writeBlobToDirectory(directoryHandle, fileName, outputBlob);
+                updateExportProgress(i + 1, bgFiles.length);
+                await yieldToBrowser();
+            }
+
+            resetCanvas(offCanvas);
+            setPrimaryButtonState(false, "ចាប់ផ្តើមជាថ្មី!");
             zipContainer.style.display = "none";
-            setPrimaryButtonState(false, "ចាប់ផ្ដើមដំណើរការ");
-            ui.progressText.innerText = "បានបោះបង់ការជ្រើសថត";
-            ui.progressCount.innerText = `0 / ${bgFiles.length}`;
-            ui.progressFill.style.width = "0%";
+            showAndroidSaveComplete(bgFiles.length);
+            resultsSection.scrollIntoView({ behavior: 'smooth' });
+            return;
+        } catch (error) {
+            resetCanvas(offCanvas);
+
+            if (error.name === "AbortError") {
+                zipContainer.style.display = "none";
+                setPrimaryButtonState(false, "ចាប់ផ្ដើមដំណើរការ");
+                ui.progressText.innerText = "បានបោះបង់ការជ្រើសថត";
+                ui.progressCount.innerText = `0 / ${bgFiles.length}`;
+                ui.progressFill.style.width = "0%";
+                return;
+            }
+
+            await resetAndroidFolderSaveState();
+
+            if (allowRetryWithFreshPicker) {
+                allowRetryWithFreshPicker = false;
+                ui.progressText.innerText = "សូមជ្រើសថតថ្មីដើម្បីរក្សាទុករូប";
+                continue;
+            }
+
+            ui.progressText.innerText = "កំពុងប្តូរទៅការទាញយកជំនួស...";
+            resetExportState();
+            await startZipExport(btn, { chunked: true });
             return;
         }
-
-        resetAndroidFolderSaveState();
-        ui.progressText.innerText = "កំពុងប្តូរទៅការទាញយកជំនួស...";
-        resetExportState();
-        await startZipExport(btn, { chunked: true });
     }
 }
 
