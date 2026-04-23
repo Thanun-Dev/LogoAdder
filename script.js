@@ -344,18 +344,30 @@ function buildNumberedFileName(fileName, index) {
     return index === 0 ? fileName : `${stem} (${index})${extension}`;
 }
 
-async function resolveAvailableDirectoryFileName(directoryHandle, fileName) {
+function normalizeDirectoryName(fileName) {
+    return fileName.toLowerCase();
+}
+
+async function collectExistingDirectoryFileNames(directoryHandle) {
+    const existingNames = new Set();
+
+    for await (const [entryName, entryHandle] of directoryHandle.entries()) {
+        if (entryHandle.kind === "file") {
+            existingNames.add(normalizeDirectoryName(entryName));
+        }
+    }
+
+    return existingNames;
+}
+
+function reserveAvailableDirectoryFileName(existingNames, fileName) {
     for (let index = 0; index < 10000; index++) {
         const candidateName = buildNumberedFileName(fileName, index);
+        const normalizedCandidateName = normalizeDirectoryName(candidateName);
 
-        try {
-            await directoryHandle.getFileHandle(candidateName, { create: false });
-        } catch (error) {
-            if (error.name === "NotFoundError") {
-                return candidateName;
-            }
-
-            throw error;
+        if (!existingNames.has(normalizedCandidateName)) {
+            existingNames.add(normalizedCandidateName);
+            return candidateName;
         }
     }
 
@@ -602,8 +614,9 @@ async function handleChangeSaveFolderClick() {
     }
 }
 
-async function writeBlobToDirectory(directoryHandle, fileName, blob) {
-    const availableFileName = await resolveAvailableDirectoryFileName(directoryHandle, fileName);
+async function writeBlobToDirectory(directoryHandle, fileName, blob, existingNames = null) {
+    const reservedNames = existingNames || await collectExistingDirectoryFileNames(directoryHandle);
+    const availableFileName = reserveAvailableDirectoryFileName(reservedNames, fileName);
     const fileHandle = await directoryHandle.getFileHandle(availableFileName, { create: true });
     const writable = await fileHandle.createWritable();
 
@@ -794,12 +807,14 @@ async function startAndroidChromeFolderExport(btn) {
                 throw new Error("Stored directory permission denied");
             }
 
+            const existingDirectoryFileNames = await collectExistingDirectoryFileNames(directoryHandle);
+
             for (let i = 0; i < bgFiles.length; i++) {
                 const { outputBlob, previewBlob } = await processImageToBlob(bgFiles[i], offCanvas);
                 const fileName = getMobileOutputFileName(bgFiles[i]);
 
                 addResultPreview(previewBlob);
-                await writeBlobToDirectory(directoryHandle, fileName, outputBlob);
+                await writeBlobToDirectory(directoryHandle, fileName, outputBlob, existingDirectoryFileNames);
                 updateExportProgress(i + 1, bgFiles.length);
                 await yieldToBrowser();
             }
