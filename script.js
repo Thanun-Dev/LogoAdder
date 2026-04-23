@@ -44,6 +44,7 @@ let currentZipDownloads = [];
 let resultPreviewUrls = [];
 let mobileShareState = null;
 let renderedPreviewCount = 0;
+let androidSaveDirectoryHandle = null;
 
 const MAX_OUTPUT_PIXELS = 4000000;
 const ZIP_CHUNK_SIZE = 5;
@@ -183,8 +184,26 @@ function scheduleUrlRevoke(url) {
     setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
 
+function isAndroidChrome() {
+    const userAgent = navigator.userAgent || "";
+    const isAndroid = /Android/i.test(userAgent);
+    const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
+    const isChrome = /Chrome\//i.test(userAgent) && !/EdgA|OPR|SamsungBrowser/i.test(userAgent);
+
+    return isAndroid && isChrome && !isIOS;
+}
+
 function isMobileDevice() {
     return window.matchMedia('(pointer: coarse)').matches || window.innerWidth <= 768;
+}
+
+function canUseAndroidFolderSave() {
+    return Boolean(
+        isAndroidChrome() &&
+        window.showDirectoryPicker &&
+        window.FileSystemFileHandle &&
+        window.FileSystemDirectoryHandle
+    );
 }
 
 function canShareFiles(files) {
@@ -289,6 +308,10 @@ function showProcessingError(error) {
     alert(error.message || "Image processing failed");
 }
 
+function resetAndroidFolderSaveState() {
+    androidSaveDirectoryHandle = null;
+}
+
 function resetExportState() {
     resultsSection.style.display = 'block';
     resultsGallery.innerHTML = "";
@@ -301,6 +324,37 @@ function resetExportState() {
     ui.finalZipBtn.disabled = false;
     updateShowMoreButton();
     ui.exportProgressContainer.style.display = 'block';
+}
+
+async function requestAndroidSaveDirectory() {
+    const directoryHandle = await window.showDirectoryPicker({
+        id: "logoadder-android-save",
+        mode: "readwrite",
+        startIn: "pictures"
+    });
+
+    androidSaveDirectoryHandle = directoryHandle;
+    return directoryHandle;
+}
+
+async function getAndroidSaveDirectory() {
+    if (androidSaveDirectoryHandle) {
+        return androidSaveDirectoryHandle;
+    }
+
+    return requestAndroidSaveDirectory();
+}
+
+async function writeBlobToDirectory(directoryHandle, fileName, blob) {
+    const fileHandle = await directoryHandle.getFileHandle(fileName, { create: true });
+    const writable = await fileHandle.createWritable();
+
+    await writable.write(blob);
+    await writable.close();
+}
+
+function showAndroidSaveComplete(count) {
+    ui.progressText.innerText = `រួចរាល់! បានរក្សាទុក ${count} រូប`;
 }
 
 // Global Drag and Drop Listeners
@@ -443,6 +497,11 @@ ui.downloadBtn.onclick = async () => {
 
     resetExportState();
 
+    if (canUseAndroidFolderSave()) {
+        await startAndroidChromeFolderExport(btn);
+        return;
+    }
+
     if (isMobileDevice() && navigator.share && navigator.canShare) {
         await startMobileShareFlow(btn);
         return;
@@ -450,6 +509,47 @@ ui.downloadBtn.onclick = async () => {
 
     await startZipExport(btn, { chunked: false });
 };
+
+async function startAndroidChromeFolderExport(btn) {
+    const offCanvas = document.createElement('canvas');
+
+    try {
+        ui.progressText.innerText = "សូមជ្រើសថតក្នុង Pictures ដើម្បីរក្សាទុករូប";
+        const directoryHandle = await getAndroidSaveDirectory();
+
+        for (let i = 0; i < bgFiles.length; i++) {
+            const { outputBlob, previewBlob } = await processImageToBlob(bgFiles[i], offCanvas);
+            const fileName = `LogoAdder_${i + 1}.jpg`;
+
+            addResultPreview(previewBlob);
+            await writeBlobToDirectory(directoryHandle, fileName, outputBlob);
+            updateExportProgress(i + 1, bgFiles.length);
+            await yieldToBrowser();
+        }
+
+        resetCanvas(offCanvas);
+        setPrimaryButtonState(false, "ចាប់ផ្តើមជាថ្មី!");
+        zipContainer.style.display = "none";
+        showAndroidSaveComplete(bgFiles.length);
+        resultsSection.scrollIntoView({ behavior: 'smooth' });
+    } catch (error) {
+        resetCanvas(offCanvas);
+
+        if (error.name === "AbortError") {
+            zipContainer.style.display = "none";
+            setPrimaryButtonState(false, "ចាប់ផ្ដើមដំណើរការ");
+            ui.progressText.innerText = "បានបោះបង់ការជ្រើសថត";
+            ui.progressCount.innerText = `0 / ${bgFiles.length}`;
+            ui.progressFill.style.width = "0%";
+            return;
+        }
+
+        resetAndroidFolderSaveState();
+        ui.progressText.innerText = "កំពុងប្តូរទៅការទាញយកជំនួស...";
+        resetExportState();
+        await startZipExport(btn, { chunked: true });
+    }
+}
 
 async function startMobileShareFlow(btn) {
     mobileShareState = {
