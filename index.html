@@ -38,12 +38,12 @@
         <div class="control-section">
           <div class="input-group">
             <label>ជ្រើសរើសរូបភាព</label>
-            <input type="file" id="bgInput" multiple accept="image/*" />
+            <input type="file" id="bgInput" multiple accept="image/*,.heic,.heif" />
             <small id="fileCount" class="status-muted">រកមិនឃើញរូបភាព</small>
           </div>
           <div class="input-group">
             <label>ជ្រើសរើស Logo</label>
-            <input type="file" id="logoInput" accept="image/*" />
+            <input type="file" id="logoInput" accept="image/*,.heic,.heif" />
             <small id="logoStatus" class="status-muted">រកមិនឃើញ Logo</small>
           </div>
           <div class="input-group">
@@ -196,6 +196,7 @@
         </footer>
       </main>
     </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/heic2any/0.0.4/heic2any.min.js"></script>
     <script src="script.js"></script>
   </body>
 </html>

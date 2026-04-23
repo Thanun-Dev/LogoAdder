@@ -100,8 +100,31 @@ async function loadConfig() {
 // SECTOR 3: IMAGE HANDLING & DRAG-DROP
 // ==========================================
 function loadImage(file) {
+    return loadImageFromBlob(file, file.name).catch(async (error) => {
+        if (!isHeicFile(file)) {
+            throw error;
+        }
+
+        const convertedBlob = await convertHeicToJpegBlob(file);
+        return loadImageFromBlob(convertedBlob, file.name);
+    });
+}
+
+function isHeicFile(file) {
+    const fileName = file && file.name ? file.name.toLowerCase() : "";
+    const fileType = file && file.type ? file.type.toLowerCase() : "";
+
+    return (
+        fileType === "image/heic" ||
+        fileType === "image/heif" ||
+        fileName.endsWith(".heic") ||
+        fileName.endsWith(".heif")
+    );
+}
+
+function loadImageFromBlob(blob, sourceName = "image") {
     return new Promise((resolve, reject) => {
-        const url = URL.createObjectURL(file);
+        const url = URL.createObjectURL(blob);
         const img = new Image();
 
         img.onload = () => {
@@ -111,11 +134,36 @@ function loadImage(file) {
 
         img.onerror = () => {
             URL.revokeObjectURL(url);
-            reject(new Error(`Image load failed: ${file.name}`));
+            reject(new Error(`Image load failed: ${sourceName}`));
         };
 
         img.src = url;
     });
+}
+
+async function convertHeicToJpegBlob(file) {
+    try {
+        const converted = await heic2any({
+            blob: file,
+            toType: "image/jpeg",
+            quality: 0.9
+        });
+
+        if (Array.isArray(converted)) {
+            return converted[0];
+        }
+
+        return converted;
+    } catch (error) {
+        throw new Error(`HEIC conversion failed: ${file.name}`);
+    }
+}
+
+function isSupportedImageFile(file) {
+    return Boolean(
+        (file.type && file.type.startsWith('image/')) ||
+        isHeicFile(file)
+    );
 }
 
 function getOutputSize(width, height) {
@@ -373,7 +421,7 @@ window.addEventListener('drop', async (e) => {
     e.preventDefault();
     if (dropOverlay) dropOverlay.style.display = 'none';
 
-    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+    const files = Array.from(e.dataTransfer.files).filter(isSupportedImageFile);
     if (files.length > 0) {
         bgFiles = files;
         handleFileSelection();
