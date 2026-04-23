@@ -46,6 +46,9 @@ let resultPreviewUrls = [];
 let mobileShareState = null;
 let renderedPreviewCount = 0;
 let androidSaveDirectoryHandle = null;
+let isProcessing = false;
+let pendingAppReload = false;
+let hasReloadedForUpdate = false;
 
 const MAX_OUTPUT_PIXELS = 4000000;
 const ZIP_CHUNK_SIZE = 5;
@@ -55,6 +58,38 @@ const AUTO_DOWNLOAD_THRESHOLD = 20;
 const DIRECTORY_DB_NAME = "logoAdderDirectoryAccess";
 const DIRECTORY_STORE_NAME = "handles";
 const DIRECTORY_HANDLE_KEY = "androidSaveDirectory";
+
+function reloadForPendingUpdate() {
+    if (hasReloadedForUpdate) {
+        return;
+    }
+
+    hasReloadedForUpdate = true;
+    window.location.reload();
+}
+
+function setProcessingState(active) {
+    isProcessing = active;
+
+    if (!active && pendingAppReload) {
+        pendingAppReload = false;
+        reloadForPendingUpdate();
+    }
+}
+
+function requestSafeAppReload() {
+    if (isProcessing) {
+        pendingAppReload = true;
+        return;
+    }
+
+    reloadForPendingUpdate();
+}
+
+window.logoAdderPwaState = {
+    isProcessingActive: () => isProcessing,
+    requestSafeReload: requestSafeAppReload
+};
 
 // ==========================================
 // SECTOR 2: CONFIGURATION & PERSISTENCE
@@ -535,6 +570,7 @@ function setPrimaryButtonState(disabled, text) {
 }
 
 function showProcessingError(error) {
+    setProcessingState(false);
     setPrimaryButtonState(false, "ចាប់ផ្ដើមដំណើរការ");
     ui.progressText.innerText = "មានបញ្ហាក្នុងការរៀបចំរូបភាព";
     alert(error.message || "Image processing failed");
@@ -766,6 +802,7 @@ ui.downloadBtn.onclick = async () => {
     if (bgFiles.length === 0 || !logoImg) return alert("សូមជ្រើសរើសរូបភាព និង Logo!");
 
     const btn = ui.downloadBtn;
+    setProcessingState(true);
     setPrimaryButtonState(true, "កំពុងរៀបចំ...");
 
     resetExportState();
@@ -823,6 +860,7 @@ async function startAndroidChromeFolderExport(btn) {
             setPrimaryButtonState(false, "ចាប់ផ្តើមជាថ្មី!");
             zipContainer.style.display = "none";
             showAndroidSaveComplete(bgFiles.length);
+            setProcessingState(false);
             resultsSection.scrollIntoView({ behavior: 'smooth' });
             return;
         } catch (error) {
@@ -830,6 +868,7 @@ async function startAndroidChromeFolderExport(btn) {
 
             if (error.name === "AbortError") {
                 zipContainer.style.display = "none";
+                setProcessingState(false);
                 setPrimaryButtonState(false, "ចាប់ផ្ដើមដំណើរការ");
                 ui.progressText.innerText = "បានបោះបង់ការជ្រើសថត";
                 ui.progressCount.innerText = `0 / ${bgFiles.length}`;
@@ -930,6 +969,7 @@ async function sharePreparedMobileBatch() {
             shareBtn.disabled = false;
             zipContainer.style.display = "none";
             ui.progressText.innerText = "រួចរាល់! (100%)";
+            setProcessingState(false);
             resultsSection.scrollIntoView({ behavior: 'smooth' });
             mobileShareState = null;
             return;
@@ -990,6 +1030,7 @@ async function startZipExport(btn, options = {}) {
 
         resetCanvas(offCanvas);
         setPrimaryButtonState(false, "ចាប់ផ្តើមជាថ្មី!");
+        setProcessingState(false);
         zipContainer.style.display = shouldAutoDownloadChunks ? "none" : "block";
         if (!shouldAutoDownloadChunks) {
             ui.finalZipBtn.innerText = currentZipDownloads.length > 1

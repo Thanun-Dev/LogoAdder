@@ -235,6 +235,13 @@
           });
 
           navigator.serviceWorker.addEventListener("controllerchange", () => {
+            const appState = window.logoAdderPwaState;
+
+            if (appState && typeof appState.requestSafeReload === "function") {
+              appState.requestSafeReload();
+              return;
+            }
+
             window.location.reload();
           });
         });
