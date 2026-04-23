@@ -18,6 +18,7 @@ const hiddenPosInput = document.getElementById('position');
 const dropOverlay = document.getElementById('drop-overlay');
 const ui = {
     canvasPlaceholder: document.getElementById('canvas-placeholder'),
+    changeSaveFolderBtn: document.getElementById('changeSaveFolderBtn'),
     downloadBtn: document.getElementById('downloadBtn'),
     exportProgressContainer: document.querySelector('.export-progress-container'),
     fileCount: document.getElementById('fileCount'),
@@ -325,6 +326,14 @@ function canUseAndroidFolderSave() {
     );
 }
 
+function setAndroidFolderButtonVisibility() {
+    if (!ui.changeSaveFolderBtn) {
+        return;
+    }
+
+    ui.changeSaveFolderBtn.style.display = canUseAndroidFolderSave() ? "block" : "none";
+}
+
 async function queryDirectoryPermission(directoryHandle) {
     if (!directoryHandle || !directoryHandle.queryPermission) {
         return "prompt";
@@ -471,6 +480,12 @@ async function resetAndroidFolderSaveState() {
     }
 }
 
+async function chooseAndroidSaveDirectory() {
+    const directoryHandle = await requestAndroidSaveDirectory();
+    ui.progressText.innerText = "បានប្តូរថតរក្សាទុករួចរាល់";
+    return directoryHandle;
+}
+
 function resetExportState() {
     resultsSection.style.display = 'block';
     resultsGallery.innerHTML = "";
@@ -505,6 +520,28 @@ async function getAndroidSaveDirectory() {
     }
 
     return requestAndroidSaveDirectory();
+}
+
+async function handleChangeSaveFolderClick() {
+    if (!canUseAndroidFolderSave()) {
+        return;
+    }
+
+    try {
+        ui.changeSaveFolderBtn.disabled = true;
+        ui.progressText.innerText = "សូមជ្រើសថតថ្មីដើម្បីរក្សាទុករូប";
+        await chooseAndroidSaveDirectory();
+    } catch (error) {
+        if (error.name === "AbortError") {
+            ui.progressText.innerText = "បានបោះបង់ការជ្រើសថត";
+            return;
+        }
+
+        ui.progressText.innerText = "មិនអាចប្តូរថតរក្សាទុកបាន";
+        alert(error.message || "Could not change the save folder");
+    } finally {
+        ui.changeSaveFolderBtn.disabled = false;
+    }
 }
 
 async function writeBlobToDirectory(directoryHandle, fileName, blob) {
@@ -678,12 +715,17 @@ async function startAndroidChromeFolderExport(btn) {
 
     while (true) {
         try {
-            ui.progressText.innerText = "សូមជ្រើសថតក្នុង Pictures ដើម្បីរក្សាទុករូប";
-            const directoryHandle = await getAndroidSaveDirectory();
+            const restoredHandle = await restorePersistedAndroidDirectoryHandle();
+            ui.progressText.innerText = restoredHandle
+                ? "កំពុងប្រើថតដែលបានចងចាំ"
+                : "សូមជ្រើសថតក្នុង Pictures ដើម្បីរក្សាទុករូប";
+            const directoryHandle = restoredHandle || await chooseAndroidSaveDirectory();
             let permissionState = await queryDirectoryPermission(directoryHandle);
 
             if (permissionState !== "granted") {
-                ui.progressText.innerText = "Chrome ត្រូវការការអនុញ្ញាតសម្រាប់ថតដែលបានរក្សាទុក";
+                ui.progressText.innerText = restoredHandle
+                    ? "ថតត្រូវបានចងចាំរួចហើយ សូមចុច អនុញ្ញាត ដើម្បីរក្សាទុករូប"
+                    : "Chrome ត្រូវការការអនុញ្ញាត ដើម្បីរក្សាទុករូបទៅថតដែលបានជ្រើស";
                 permissionState = await requestDirectoryPermission(directoryHandle);
             }
 
@@ -896,6 +938,10 @@ ui.finalZipBtn.onclick = () => {
     });
 };
 
+if (ui.changeSaveFolderBtn) {
+    ui.changeSaveFolderBtn.onclick = handleChangeSaveFolderClick;
+}
+
 logoInput.onchange = async (e) => {
     if (e.target.files[0]) {
         const reader = new FileReader();
@@ -913,4 +959,5 @@ logoInput.onchange = async (e) => {
 };
 
 // Initial Load
+setAndroidFolderButtonVisibility();
 loadConfig();

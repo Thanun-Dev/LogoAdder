@@ -27,7 +27,7 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="apple-touch-icon" href="icons/icon-192.png" />
     <link rel="stylesheet" href="style.css" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="vendor/jszip.min.js"></script>
   </head>
   <body>
     <div id="drop-overlay" class="drop-zone-overlay">
@@ -135,6 +135,14 @@
           <button id="downloadBtn" class="primary-btn">
             ចាប់ផ្ដើមដំណើរការ
           </button>
+          <button
+            id="changeSaveFolderBtn"
+            class="secondary-btn android-folder-btn"
+            style="display: none"
+            type="button"
+          >
+            ប្តូរថតរក្សាទុក
+          </button>
           <div id="zipDownloadContainer" style="display: none; width: 100%">
             <button id="finalZipBtn" class="secondary-btn">ទាញយកជា ZIP</button>
           </div>
@@ -202,12 +210,33 @@
         </footer>
       </main>
     </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/heic2any/0.0.4/heic2any.min.js"></script>
+    <script src="vendor/heic2any.min.js"></script>
     <script src="script.js"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-          navigator.serviceWorker.register("./sw.js");
+          navigator.serviceWorker.register("./sw.js").then((registration) => {
+            if (registration.waiting) {
+              registration.waiting.postMessage("SKIP_WAITING");
+            }
+
+            registration.addEventListener("updatefound", () => {
+              const installingWorker = registration.installing;
+              if (!installingWorker) {
+                return;
+              }
+
+              installingWorker.addEventListener("statechange", () => {
+                if (installingWorker.state === "installed" && navigator.serviceWorker.controller) {
+                  installingWorker.postMessage("SKIP_WAITING");
+                }
+              });
+            });
+          });
+
+          navigator.serviceWorker.addEventListener("controllerchange", () => {
+            window.location.reload();
+          });
         });
       }
     </script>

@@ -312,6 +312,13 @@ select:focus {
   cursor: pointer;
 }
 
+.android-folder-btn {
+  background: rgba(59, 130, 246, 0.08) !important;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  color: #8fd0ff;
+  box-shadow: none;
+}
+
 .primary-btn:active, .pos-btn:active, .secondary-btn:active {
     transform: scale(0.97);
     filter: brightness(0.9);
