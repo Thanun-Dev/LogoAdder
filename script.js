@@ -304,6 +304,64 @@ function scheduleUrlRevoke(url) {
     setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
 
+function getSourceFileStem(file) {
+    const sourceName = file && file.name ? file.name : "image";
+    const lastDotIndex = sourceName.lastIndexOf(".");
+
+    if (lastDotIndex <= 0) {
+        return sourceName;
+    }
+
+    return sourceName.slice(0, lastDotIndex);
+}
+
+function sanitizeOutputFileStem(stem) {
+    return stem
+        .replace(/[<>:"/\\|?*]/g, "_")
+        .replace(/\s+/g, " ")
+        .trim() || "image";
+}
+
+function getMobileOutputFileName(file) {
+    const safeStem = sanitizeOutputFileStem(getSourceFileStem(file));
+    return `${safeStem}.jpg`;
+}
+
+function splitOutputFileName(fileName) {
+    const lastDotIndex = fileName.lastIndexOf(".");
+    if (lastDotIndex <= 0) {
+        return { stem: fileName, extension: "" };
+    }
+
+    return {
+        stem: fileName.slice(0, lastDotIndex),
+        extension: fileName.slice(lastDotIndex)
+    };
+}
+
+function buildNumberedFileName(fileName, index) {
+    const { stem, extension } = splitOutputFileName(fileName);
+    return index === 0 ? fileName : `${stem} (${index})${extension}`;
+}
+
+async function resolveAvailableDirectoryFileName(directoryHandle, fileName) {
+    for (let index = 0; index < 10000; index++) {
+        const candidateName = buildNumberedFileName(fileName, index);
+
+        try {
+            await directoryHandle.getFileHandle(candidateName, { create: false });
+        } catch (error) {
+            if (error.name === "NotFoundError") {
+                return candidateName;
+            }
+
+            throw error;
+        }
+    }
+
+    throw new Error("Could not resolve a unique file name");
+}
+
 function isAndroidChrome() {
     const userAgent = navigator.userAgent || "";
     const isAndroid = /Android/i.test(userAgent);
@@ -545,11 +603,14 @@ async function handleChangeSaveFolderClick() {
 }
 
 async function writeBlobToDirectory(directoryHandle, fileName, blob) {
-    const fileHandle = await directoryHandle.getFileHandle(fileName, { create: true });
+    const availableFileName = await resolveAvailableDirectoryFileName(directoryHandle, fileName);
+    const fileHandle = await directoryHandle.getFileHandle(availableFileName, { create: true });
     const writable = await fileHandle.createWritable();
 
     await writable.write(blob);
     await writable.close();
+
+    return availableFileName;
 }
 
 function showAndroidSaveComplete(count) {
@@ -735,7 +796,7 @@ async function startAndroidChromeFolderExport(btn) {
 
             for (let i = 0; i < bgFiles.length; i++) {
                 const { outputBlob, previewBlob } = await processImageToBlob(bgFiles[i], offCanvas);
-                const fileName = `LogoAdder_${i + 1}.jpg`;
+                const fileName = getMobileOutputFileName(bgFiles[i]);
 
                 addResultPreview(previewBlob);
                 await writeBlobToDirectory(directoryHandle, fileName, outputBlob);
@@ -802,7 +863,7 @@ async function prepareNextMobileShareBatch(btn) {
 
         for (let i = start; i < end; i++) {
             const { outputBlob, previewBlob } = await processImageToBlob(bgFiles[i], offCanvas);
-            const outputName = `LogoAdder_${i + 1}.jpg`;
+            const outputName = getMobileOutputFileName(bgFiles[i]);
             const shareFile = new File([outputBlob], outputName, { type: "image/jpeg" });
 
             mobileShareState.currentFiles.push(shareFile);
