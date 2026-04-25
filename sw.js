@@ -1,9 +1,13 @@
-const CACHE_NAME = 'logoadder-shell-v3';
+const CACHE_NAME = 'logoadder-shell-v5';
 const APP_SHELL = [
   './',
   './index.html',
   './style.css',
-  './script.js',
+  './app-state.js',
+  './media-ui.js',
+  './export-flows.js',
+  './app.js',
+  './heic-worker.js',
   './vendor/jszip.min.js',
   './vendor/heic2any.min.js',
   './LogoAdder.png',

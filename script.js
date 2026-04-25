@@ -22,6 +22,9 @@ const ui = {
     downloadBtn: document.getElementById('downloadBtn'),
     exportProgressContainer: document.querySelector('.export-progress-container'),
     exportSummaryCard: document.getElementById('exportSummaryCard'),
+    exportSummaryCurrentFile: document.getElementById('exportSummaryCurrentFile'),
+    exportSummaryDestination: document.getElementById('exportSummaryDestination'),
+    exportSummaryNote: document.getElementById('exportSummaryNote'),
     exportSummarySaved: document.getElementById('exportSummarySaved'),
     exportSummarySkipped: document.getElementById('exportSummarySkipped'),
     exportSummaryStatus: document.getElementById('exportSummaryStatus'),
@@ -39,7 +42,8 @@ const ui = {
     progressFill: document.getElementById('export-progress-fill'),
     progressText: document.getElementById('progress-text'),
     sizeSlider: document.getElementById('sizeSlider'),
-    sizeVal: document.getElementById('sizeVal')
+    sizeVal: document.getElementById('sizeVal'),
+    placeholderText: document.querySelector('.placeholder-text')
 };
 
 let bgFiles = [];
@@ -55,6 +59,12 @@ let isProcessing = false;
 let pendingAppReload = false;
 let hasReloadedForUpdate = false;
 let exportSummaryState = null;
+let exportFailureItems = [];
+let heicBatchWorker = null;
+let heicBatchWorkerRequestId = 0;
+const pendingHeicBatchWorkerRequests = new Map();
+
+const DEFAULT_PLACEHOLDER_TEXT = ui.placeholderText ? ui.placeholderText.innerText : "សូមជ្រើសរើសរូបភាពដើម្បីចាប់ផ្ដើម";
 
 const MAX_OUTPUT_PIXELS = 4000000;
 const ZIP_CHUNK_SIZE = 5;
@@ -101,6 +111,7 @@ window.logoAdderPwaState = {
 
 function resetExportSummary() {
     exportSummaryState = null;
+    exportFailureItems = [];
 
     if (!ui.exportSummaryCard) {
         return;
@@ -110,7 +121,10 @@ function resetExportSummary() {
     ui.exportSummaryTitle.innerText = "ស្ថានភាពការដំណើរការ";
     ui.exportSummarySaved.innerText = "0 / 0";
     ui.exportSummarySkipped.innerText = "0";
+    ui.exportSummaryDestination.innerText = "-";
+    ui.exportSummaryCurrentFile.innerText = "-";
     ui.exportSummaryStatus.innerText = "កំពុងរៀបចំ...";
+    ui.exportSummaryNote.innerText = "";
 }
 
 function renderExportSummary() {
@@ -126,11 +140,17 @@ function renderExportSummary() {
     ui.exportSummaryTitle.innerText = exportSummaryState.title;
     ui.exportSummarySaved.innerText = `${exportSummaryState.saved} / ${exportSummaryState.total}`;
     ui.exportSummarySkipped.innerText = `${exportSummaryState.skipped}`;
+    ui.exportSummaryDestination.innerText = exportSummaryState.destination || "-";
+    ui.exportSummaryCurrentFile.innerText = exportSummaryState.currentFile || "-";
     ui.exportSummaryStatus.innerText = exportSummaryState.status;
+    ui.exportSummaryNote.innerText = exportSummaryState.note || "";
 }
 
-function beginExportSummary({ title, total, status, visible }) {
+function beginExportSummary({ title, total, status, visible, destination = "-", currentFile = "-", note = "" }) {
     exportSummaryState = {
+        currentFile,
+        destination,
+        note,
         saved: 0,
         skipped: 0,
         status,
@@ -141,7 +161,7 @@ function beginExportSummary({ title, total, status, visible }) {
     renderExportSummary();
 }
 
-function updateExportSummary({ saved, skipped, status, visible }) {
+function updateExportSummary({ saved, skipped, status, visible, destination, currentFile, note }) {
     if (!exportSummaryState) {
         return;
     }
@@ -158,11 +178,47 @@ function updateExportSummary({ saved, skipped, status, visible }) {
         exportSummaryState.status = status;
     }
 
+    if (typeof destination === "string") {
+        exportSummaryState.destination = destination;
+    }
+
+    if (typeof currentFile === "string") {
+        exportSummaryState.currentFile = currentFile;
+    }
+
+    if (typeof note === "string") {
+        exportSummaryState.note = note;
+    }
+
     if (typeof visible === "boolean") {
         exportSummaryState.visible = visible;
     }
 
     renderExportSummary();
+}
+
+function setCompactProgressSummary() {
+    if (!exportSummaryState) {
+        return;
+    }
+
+    updateExportSummary({
+        currentFile: "-",
+        destination: "-",
+        note: ""
+    });
+}
+
+function setDetailedCompletionSummary({ destination, note }) {
+    if (!exportSummaryState) {
+        return;
+    }
+
+    updateExportSummary({
+        currentFile: "បញ្ចប់",
+        destination: destination || "-",
+        note: note || ""
+    });
 }
 
 function withTimeout(promise, timeoutMs, timeoutMessage) {
@@ -179,6 +235,90 @@ function withTimeout(promise, timeoutMs, timeoutMessage) {
                 reject(error);
             });
     });
+}
+
+function formatDisplayFileName(fileOrName, maxLength = 36) {
+    const rawName = typeof fileOrName === "string"
+        ? fileOrName
+        : fileOrName && fileOrName.name
+            ? fileOrName.name
+            : "image";
+
+    if (rawName.length <= maxLength) {
+        return rawName;
+    }
+
+    return `${rawName.slice(0, maxLength - 1)}…`;
+}
+
+function summarizeFailureReason(error) {
+    if (!error || !error.message) {
+        return "មិនអាចដំណើរការបាន";
+    }
+
+    const message = error.message.toLowerCase();
+
+    if (message.includes("timed out")) {
+        return "អស់ពេលរង់ចាំ";
+    }
+
+    if (message.includes("heic conversion failed")) {
+        return "បម្លែង HEIC មិនបាន";
+    }
+
+    if (message.includes("image load failed")) {
+        return "បើករូបមិនបាន";
+    }
+
+    if (message.includes("canvas export failed")) {
+        return "បង្កើតរូបចេញមិនបាន";
+    }
+
+    return error.message;
+}
+
+function recordFailedFile(file, error) {
+    exportFailureItems.push({
+        fileName: file && file.name ? file.name : "image",
+        reason: summarizeFailureReason(error)
+    });
+}
+
+function buildFailureSummaryNote() {
+    if (exportFailureItems.length === 0) {
+        return "";
+    }
+
+    const lastFailure = exportFailureItems[exportFailureItems.length - 1];
+    return `បានរំលង ${exportFailureItems.length} ឯកសារ • ចុងក្រោយ: ${formatDisplayFileName(lastFailure.fileName, 28)} (${lastFailure.reason})`;
+}
+
+function buildCurrentFileProgressText(actionLabel, file, currentIndex, totalCount) {
+    return `${actionLabel} ${currentIndex}/${totalCount}: ${formatDisplayFileName(file)}`;
+}
+
+function setPreviewFallback(message) {
+    currentPreviewImg = null;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (ui.placeholderText) {
+        ui.placeholderText.innerText = message || DEFAULT_PLACEHOLDER_TEXT;
+    }
+    if (ui.canvasPlaceholder) {
+        ui.canvasPlaceholder.style.display = 'flex';
+    }
+    canvas.classList.remove('active-canvas');
+}
+
+function clearPreviewFallback() {
+    if (ui.placeholderText) {
+        ui.placeholderText.innerText = DEFAULT_PLACEHOLDER_TEXT;
+    }
+    if (ui.canvasPlaceholder && bgFiles.length > 0) {
+        ui.canvasPlaceholder.style.display = 'none';
+    }
+    if (bgFiles.length > 0) {
+        canvas.classList.add('active-canvas');
+    }
 }
 
 async function processAndroidBatchFile(file) {
@@ -246,6 +386,49 @@ async function loadConfig() {
 // ==========================================
 // SECTOR 3: IMAGE HANDLING & DRAG-DROP
 // ==========================================
+function rejectPendingHeicBatchWorkerRequests(error) {
+    pendingHeicBatchWorkerRequests.forEach(({ reject }) => reject(error));
+    pendingHeicBatchWorkerRequests.clear();
+}
+
+function getHeicBatchWorker() {
+    if (heicBatchWorker) {
+        return heicBatchWorker;
+    }
+
+    if (!window.Worker) {
+        return null;
+    }
+
+    const worker = new Worker("./heic-worker.js");
+
+    worker.onmessage = (event) => {
+        const { id, ok, blob, error } = event.data || {};
+        const pendingRequest = pendingHeicBatchWorkerRequests.get(id);
+
+        if (!pendingRequest) {
+            return;
+        }
+
+        pendingHeicBatchWorkerRequests.delete(id);
+
+        if (ok) {
+            pendingRequest.resolve(blob);
+            return;
+        }
+
+        pendingRequest.reject(new Error(error || "HEIC worker conversion failed"));
+    };
+
+    worker.onerror = () => {
+        heicBatchWorker = null;
+        rejectPendingHeicBatchWorkerRequests(new Error("HEIC worker failed"));
+    };
+
+    heicBatchWorker = worker;
+    return heicBatchWorker;
+}
+
 function loadImage(file) {
     return loadImageFromBlob(file, file.name).catch(async (error) => {
         if (!isHeicFile(file)) {
@@ -304,6 +487,37 @@ async function convertHeicToJpegBlob(file) {
     } catch (error) {
         throw new Error(`HEIC conversion failed: ${file.name}`);
     }
+}
+
+async function convertHeicToJpegBlobInWorker(file) {
+    const worker = getHeicBatchWorker();
+
+    if (!worker) {
+        return convertHeicToJpegBlob(file);
+    }
+
+    return new Promise((resolve, reject) => {
+        const requestId = ++heicBatchWorkerRequestId;
+        pendingHeicBatchWorkerRequests.set(requestId, { resolve, reject });
+        worker.postMessage({ id: requestId, file });
+    }).catch(async (error) => {
+        if (error && error.message === "HEIC worker failed") {
+            return convertHeicToJpegBlob(file);
+        }
+
+        throw error;
+    });
+}
+
+function loadBatchImage(file) {
+    return loadImageFromBlob(file, file.name).catch(async (error) => {
+        if (!isHeicFile(file)) {
+            throw error;
+        }
+
+        const convertedBlob = await convertHeicToJpegBlobInWorker(file);
+        return loadImageFromBlob(convertedBlob, file.name);
+    });
 }
 
 function openDirectoryHandleDb() {
@@ -652,7 +866,7 @@ function updateShowMoreButton() {
 }
 
 async function processImageToBlob(file, offCanvas) {
-    const img = await loadImage(file);
+    const img = await loadBatchImage(file);
     const outputSize = getOutputSize(img.width, img.height);
 
     render(offCanvas, img, logoImg, outputSize.width, outputSize.height);
@@ -664,11 +878,11 @@ async function processImageToBlob(file, offCanvas) {
     return { outputBlob, previewBlob };
 }
 
-function updateExportProgress(processedCount, totalCount) {
+function updateExportProgress(processedCount, totalCount, progressMessage = null) {
     const percent = Math.round((processedCount / totalCount) * 100);
 
     ui.progressFill.style.width = percent + "%";
-    ui.progressText.innerText = `កំពុងរៀបចំ... (${percent}%)`;
+    ui.progressText.innerText = progressMessage || `កំពុងរៀបចំ... (${percent}%)`;
     ui.progressCount.innerText = `${processedCount} / ${totalCount}`;
 }
 
@@ -807,7 +1021,14 @@ bgInput.onchange = (e) => {
 function handleFileSelection() {
     ui.fileCount.innerText = `${bgFiles.length} រូបភាពដែលបានជ្រើសរើស`;
     currentIdx = 0;
-    if (bgFiles.length > 0) loadCurrentImg();
+    if (bgFiles.length > 0) {
+        loadCurrentImg();
+    } else {
+        setPreviewFallback(DEFAULT_PLACEHOLDER_TEXT);
+        if (ui.navControls) {
+            ui.navControls.classList.add('hidden-nav');
+        }
+    }
 }
 
 // ==========================================
@@ -890,14 +1111,17 @@ document.querySelectorAll('.fancy-input').forEach(el => {
 // ==========================================
 async function loadCurrentImg() {
     if (bgFiles.length > 0) {
-        if (ui.canvasPlaceholder) ui.canvasPlaceholder.style.display = 'none';
         if (ui.navControls) ui.navControls.classList.remove('hidden-nav');
-        canvas.classList.add('active-canvas');
     }
-
-    currentPreviewImg = await loadImage(bgFiles[currentIdx]);
     ui.navStatus.innerText = `${currentIdx + 1} / ${bgFiles.length}`;
-    draw();
+
+    try {
+        currentPreviewImg = await loadImage(bgFiles[currentIdx]);
+        clearPreviewFallback();
+        draw();
+    } catch (error) {
+        setPreviewFallback("មិនអាចបង្ហាញ Preview រូបនេះបាន");
+    }
 }
 
 document.getElementById('nextZone').onclick = () => {
@@ -941,6 +1165,7 @@ async function startAndroidChromeFolderExport(btn) {
                 status: "កំពុងរក្សាទុកទៅថតដែលបានជ្រើស",
                 visible: true
             });
+            setCompactProgressSummary();
 
             const restoredHandle = await restorePersistedAndroidDirectoryHandle();
             ui.progressText.innerText = restoredHandle
@@ -965,6 +1190,8 @@ async function startAndroidChromeFolderExport(btn) {
             let skippedCount = 0;
 
             for (let i = 0; i < bgFiles.length; i++) {
+                const progressMessage = buildCurrentFileProgressText("កំពុងដំណើរការ", bgFiles[i], i + 1, bgFiles.length);
+                updateExportProgress(i, bgFiles.length, progressMessage);
                 const result = await processAndroidBatchFile(bgFiles[i]);
 
                 if (result.ok) {
@@ -974,9 +1201,10 @@ async function startAndroidChromeFolderExport(btn) {
                     savedCount += 1;
                 } else {
                     skippedCount += 1;
+                    recordFailedFile(bgFiles[i], result.error);
                 }
 
-                updateExportProgress(i + 1, bgFiles.length);
+                updateExportProgress(i + 1, bgFiles.length, progressMessage);
                 updateExportSummary({
                     saved: savedCount,
                     skipped: skippedCount,
@@ -990,6 +1218,10 @@ async function startAndroidChromeFolderExport(btn) {
             setPrimaryButtonState(false, "ចាប់ផ្តើមជាថ្មី!");
             zipContainer.style.display = "none";
             showAndroidSaveComplete(savedCount);
+            setDetailedCompletionSummary({
+                destination: "ថតដែលបានជ្រើស",
+                note: buildFailureSummaryNote()
+            });
             updateExportSummary({
                 saved: savedCount,
                 skipped: skippedCount,
@@ -1052,13 +1284,15 @@ async function prepareNextMobileShareBatch(btn) {
         mobileShareState.currentLabel = `${start + 1}-${end}`;
 
         for (let i = start; i < end; i++) {
+            const progressMessage = buildCurrentFileProgressText("កំពុងរៀបចំ", bgFiles[i], i + 1, mobileShareState.total);
+            updateExportProgress(i, mobileShareState.total, progressMessage);
             const { outputBlob, previewBlob } = await processImageToBlob(bgFiles[i], offCanvas);
             const outputName = getMobileOutputFileName(bgFiles[i]);
             const shareFile = new File([outputBlob], outputName, { type: "image/jpeg" });
 
             mobileShareState.currentFiles.push(shareFile);
             addResultPreview(previewBlob);
-            updateExportProgress(i + 1, mobileShareState.total);
+            updateExportProgress(i + 1, mobileShareState.total, progressMessage);
             await yieldToBrowser();
         }
 
@@ -1111,6 +1345,10 @@ async function sharePreparedMobileBatch() {
                 status: "បានចែករំលែក/រក្សាទុករួច",
                 visible: true
             });
+            setDetailedCompletionSummary({
+                destination: "iPhone Share",
+                note: buildFailureSummaryNote()
+            });
             updateExportSummary({
                 saved: mobileShareState.total,
                 skipped: 0,
@@ -1146,10 +1384,12 @@ async function startZipExport(btn, options = {}) {
             const end = Math.min(start + filesPerZip, bgFiles.length);
 
             for (let i = start; i < end; i++) {
+                const progressMessage = buildCurrentFileProgressText("កំពុងដំណើរការ", bgFiles[i], i + 1, bgFiles.length);
+                updateExportProgress(i, bgFiles.length, progressMessage);
                 const { outputBlob, previewBlob } = await processImageToBlob(bgFiles[i], offCanvas);
 
                 addResultPreview(previewBlob);
-                updateExportProgress(i + 1, bgFiles.length);
+                updateExportProgress(i + 1, bgFiles.length, progressMessage);
                 zip.file(`LogoAdder_${i + 1}.jpg`, outputBlob);
                 await yieldToBrowser();
             }

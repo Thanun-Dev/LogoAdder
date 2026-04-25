@@ -130,6 +130,25 @@
               class="styled-slider"
             />
           </div>
+          <div class="margin-row">
+            <div class="input-group">
+              <label>Export Quality</label>
+              <select id="qualityPreset" class="preset-select">
+                <option value="high" selected>High</option>
+                <option value="balanced">Balanced</option>
+                <option value="small">Small File</option>
+              </select>
+            </div>
+            <div class="input-group">
+              <label>Output Size</label>
+              <select id="sizePreset" class="preset-select">
+                <option value="original" selected>Original</option>
+                <option value="large">Large</option>
+                <option value="medium">Medium</option>
+                <option value="small">Small</option>
+              </select>
+            </div>
+          </div>
         </div>
         <div class="action-area">
           <button id="downloadBtn" class="primary-btn">
@@ -145,6 +164,11 @@
           </button>
           <div id="zipDownloadContainer" style="display: none; width: 100%">
             <button id="finalZipBtn" class="secondary-btn">ទាញយកជា ZIP</button>
+          </div>
+          <div id="firstRunGuidance" class="first-run-guidance" style="display: none">
+            <div class="first-run-guidance-title">ការណែនាំខ្លី</div>
+            <div id="firstRunGuidanceBody" class="first-run-guidance-body"></div>
+            <button id="dismissGuidanceBtn" type="button" class="guidance-dismiss-btn">យល់ព្រម</button>
           </div>
         </div>
       </aside>
@@ -194,7 +218,16 @@
                 <span>បានរំលង</span>
                 <strong id="exportSummarySkipped">0</strong>
               </div>
+              <div class="export-summary-row">
+                <span>គោលដៅ</span>
+                <strong id="exportSummaryDestination">-</strong>
+              </div>
+              <div class="export-summary-row">
+                <span>ឯកសារកំពុងដំណើរការ</span>
+                <strong id="exportSummaryCurrentFile">-</strong>
+              </div>
               <div id="exportSummaryStatus" class="export-summary-status">កំពុងរៀបចំ...</div>
+              <div id="exportSummaryNote" class="export-summary-note"></div>
             </div>
           </div>
         </div>
@@ -223,7 +256,10 @@
       </main>
     </div>
     <script src="vendor/heic2any.min.js"></script>
-    <script src="script.js"></script>
+    <script src="app-state.js"></script>
+    <script src="media-ui.js"></script>
+    <script src="export-flows.js"></script>
+    <script src="app.js"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
